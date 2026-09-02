@@ -795,6 +795,39 @@ check(
         abandoned.calls().join(' | '),
     );
 
+    /* ------------------------------------------- hidden means hidden */
+
+    /*
+     * The live region is built *outside* the part `render` clears, deliberately,
+     * so an announcement cannot be destroyed by the render its own command
+     * triggered. The cost is this: clearing the surface leaves the message
+     * behind, and a hidden control went on showing the last thing it had to say
+     * — floating above whatever the form had put there instead.
+     *
+     * `handle.options` is the live bag `createContext()` reads, so flipping
+     * `visible` and re-driving is what the platform does when a form tab is
+     * switched away from.
+     */
+    const hiding = bind({ inputs: { showDelete: true }, dialogs: 'confirmed' });
+
+    press(commandOn(hiding, 0, 'delete'));
+    await settled();
+
+    check(
+        'a visible control shows what it announced',
+        hiding.find('.RowCommands-status').textContent !== '',
+        hiding.find('.RowCommands-status').textContent,
+    );
+
+    hiding.handle.options.visible = false;
+    hiding.settle();
+
+    check(
+        'and a hidden one says nothing at all, message included',
+        hiding.find('.RowCommands-status').textContent === '' && rowsOf(hiding).length === 0,
+        `status "${hiding.find('.RowCommands-status').textContent}", ${rowsOf(hiding).length} rows`,
+    );
+
     /* ---------------------------------------------------------- teardown */
 
     disposeAll();

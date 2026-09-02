@@ -299,8 +299,20 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
         this.surface.innerHTML = '';
 
-        // Canvas relies on this; a model-driven form hides the section itself.
+        /*
+         * Canvas relies on this; a model-driven form hides the section itself.
+         *
+         * The live region has to go with it, and that is not obvious from where
+         * it is built: it lives *outside* the surface — deliberately, so that a
+         * render cannot destroy an announcement mid-sentence — which means
+         * clearing the surface leaves it behind. A hidden control was still
+         * showing the last thing it had to say, floating above whatever the
+         * form put there instead.
+         */
         if (!context.mode.isVisible) {
+            this.clearStatusTimer();
+            this.status.textContent = '';
+
             return;
         }
 
