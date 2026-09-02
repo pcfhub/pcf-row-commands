@@ -16,7 +16,9 @@
  *   - **a non-sortable column**, which a real view has and a hand-written
  *     fixture never does.
  *   - **a null value and an empty string in the same column**, the two that
- *     catch a cell renderer treating falsy as empty.
+ *     catch a cell renderer treating falsy as empty, and **a record with no
+ *     name at all** — the row that is a real record and looks like a rendering
+ *     failure.
  *   - **a name long enough to overflow**, because column widths are decided by
  *     `visualSizeFactor` and nobody finds out until a customer has a long one.
  *   - **a URL column carrying six things that are not a URL**, because this
@@ -142,7 +144,12 @@
 
             // A column with no value at all, which is not the same as one with
             // an empty string — and both reach `getFormattedValue`.
-            { id: 'a09', values: { name: 'Blue Yonder Airlines', accountnumber: null, primarycontactname: '', statecode: 'Active', ownerid: 'Jo Park', websiteurl: '  https://blueyonder.example.com  ' } },
+            // And no name at all, which is what a real view surfaced: sorted by
+            // name, every unnamed record lands at the top, so the first thing
+            // anybody sees is a run of blank rows with working commands beside
+            // them. The primary column is the row's identity and an empty one
+            // has to say so.
+            { id: 'a09', values: { name: '', accountnumber: null, primarycontactname: '', statecode: 'Active', ownerid: 'Jo Park', websiteurl: '  https://blueyonder.example.com  ' } },
 
             // Long enough to overflow whatever width `visualSizeFactor` bought.
             { id: 'a10', values: { name: 'Consolidated Messenger Intercontinental Freight and Warehousing', accountnumber: 'ACC-1288', primarycontactname: 'Margarethe Kowalczyk-Fitzgerald', statecode: 'Active', ownerid: 'Sam Vaziri', websiteurl: 'data:text/html,<script>alert(1)</script>' } },

@@ -428,6 +428,17 @@
   nothing — so `:empty` still does that work. It is `display: flex` rather than
   `block` when it is not empty, which is why the rule below overrides it.
 */
+/*
+  The stand-in for a record with no name. Muted and italic so it is legible as
+  an *absence* — a value that is not there — rather than as a name somebody
+  actually typed. It is the one cell in the table that shows something the
+  record does not contain, so it has to look different from every other cell.
+*/
+.RowCommands-untitled {
+    color: var(--RowCommands-foreground-secondary);
+    font-style: italic;
+}
+
 .RowCommands-status {
     display: flex;
     align-items: flex-start;
