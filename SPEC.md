@@ -19,9 +19,41 @@ errored, and it looked like the commands had stopped rendering.
 
 Under fixed layout the choice is a real width or none at all, and none means an
 equal share of the table — which stacks three buttons one per line and turns a
-six-row view into twelve rows of chrome. The column is `22em`, and the commands
-are right-aligned so the two-command case reads as a column that ends at the
-table's edge rather than one with a hole in it.
+six-row view into twelve rows of chrome. The column carries a real pixel width,
+and the commands are right-aligned so the two-command case reads as a column
+that ends at the table's edge rather than one with a hole in it.
+
+That width lives in `index.ts` rather than the stylesheet, and moving it there
+was the second half of the fix: the table's minimum width is the columns' own
+widths plus this one, so a copy of the number in CSS is a copy that drifts the
+first time somebody adjusts the padding.
+
+**A sticky cell does not paint over a collapsed border.** The command column is
+`position: sticky; right: 0` so it stays reachable while the data scrolls under
+it, and with `border-collapse: collapse` a one-pixel strip of the column beneath
+showed through its leading edge — a flicker of the wrong text down the join,
+which reads as a rendering fault rather than as a CSS rule. Collapsed borders
+are painted outside the cell's background box, so there is nothing to be opaque
+there. `border-collapse: separate` with `border-spacing: 0` puts the geometry
+back exactly, and nothing here depended on collapsing: every cell draws a
+`border-bottom` and no two borders ever meet.
+
+**`visualSizeFactor` was being ignored, and that is what "unreadable on a phone"
+turned out to mean.** Under `table-layout: fixed` a table with no widths divides
+its space equally, so the primary column — the one anybody actually reads — got
+the same 74 pixels as a two-state status, and every value came out as an
+ellipsis. The factor is what the person who built the view dragged the column
+edges to; it is applied to the header row now, and the table's minimum width is
+their sum plus the command column rather than a constant guessed here. Canvas
+reports 0 for every column, so the factors are used only when at least one is
+real — a table of zero-width columns is not a degraded layout, it is an
+invisible one.
+
+**A 20-pixel target fails WCAG 2.2.** A 16px glyph with 2px of padding is 20
+high, and SC 2.5.8 asks for 24 at **AA** — not the 44 of 2.5.5 at AAA, which a
+button inside a 44px row cannot have. The commands are 32 now, which clears the
+requirement with room and is the same size in both modes, so the target does not
+change when the label goes away. This shipped wrong in 0.1.0.
 
 **The dev harness rendered nothing at all, and the control was right.** First
 run of `npm run harness`: an empty box and
@@ -156,16 +188,43 @@ The fourth preset switches `showDelete` on and visibly changes nothing. That is
 deliberate — a preset demonstrating the degradation is worth more than one
 hiding it.
 
+## What a real form showed
+
+**0.1.0 went on a model-driven subgrid, and two things came back.**
+
+The first is that the control loads, renders a bound view, and completes a
+delete: a record was removed and the row went. That settles more than it looks
+like — `openConfirmDialog` resolved, its `confirmed` flag was read correctly,
+`webAPI.deleteRecord` succeeded against a real Dataverse, and the refresh
+afterwards took the row off the screen. All four were read from the type
+definitions and asserted only against `dev/host.js` until then.
+
+The second is that **the live region looked like a stray sentence somebody had
+left in the page.** It was `margin: 0` and a grey colour, so on a real form it
+sat hard against the table header as an unstyled line of prose — not obviously
+part of the control, and not obviously a report of anything. A message about a
+record that was just deleted is a notification and has to look like one: a
+surface, a border, an icon, and padding. It also stayed up forever, which is how
+a status becomes furniture; a success or an information message now clears
+itself after six seconds and a failure does not, because by then the platform's
+error dialog has been dismissed and this line is the only remaining trace.
+
+Neither of those is something the harness could have shown. The first needed a
+Dataverse and the second needed somebody to look at it on a form.
+
 ## Not verified
 
-Nothing in this repository has been on a real Power App. Every platform answer
+Nothing in this repository has been on a real Power App **except what is
+recorded above**. Every platform answer
 comes from `dev/host.js`, which was written from the type definitions and the
 reference. Four items are load-bearing:
 
 - **That a cancelled `openConfirmDialog` really does resolve** with
-  `{ confirmed: false }` rather than rejecting. This is read from the type
-  signature and the documented behaviour, and the entire delete path is built on
-  it. Proving it: one press and one Cancel on a real model-driven form.
+  `{ confirmed: false }` rather than rejecting. Still open, and note what the
+  form above did *not* show: that delete was confirmed, not cancelled, so the
+  success path is proven and the cancel path is exactly as unproven as it was.
+  It is the one that costs a record if it is wrong. Proving it: one press and
+  one **Cancel**.
 - **That `openForm`'s promise settles when the form closes**, rather than when
   it opens. The refresh-after-edit behaviour is worth nothing if it resolves
   immediately, and the type definitions do not say which it is. Proving it: open

@@ -47,6 +47,12 @@
     --RowCommands-stroke-disabled: var(--colorNeutralStrokeDisabled, #e0e0e0);
     --RowCommands-focus-inner: var(--colorStrokeFocus1, #ffffff);
     --RowCommands-focus-outer: var(--colorStrokeFocus2, #000000);
+    --RowCommands-surface-subtle: var(--colorNeutralBackground3, #f5f5f5);
+    --RowCommands-success-foreground: var(--colorPaletteGreenForeground1, #0e700e);
+    --RowCommands-success-background: var(--colorPaletteGreenBackground1, #f1faf1);
+    --RowCommands-success-stroke: var(--colorPaletteGreenBorder1, #9fd89f);
+    --RowCommands-danger-background: var(--colorPaletteRedBackground1, #fdf3f4);
+    --RowCommands-danger-stroke: var(--colorPaletteRedBorder1, #f1bbbc);
     --RowCommands-radius: var(--borderRadiusMedium, 4px);
     --RowCommands-duration: var(--durationFaster, 100ms);
     --RowCommands-curve: var(--curveEasyEase, cubic-bezier(0.33, 0, 0.67, 1));
@@ -88,6 +94,12 @@
     --RowCommands-stroke-disabled: var(--colorNeutralStrokeDisabled, #424242);
     --RowCommands-focus-inner: var(--colorStrokeFocus1, #000000);
     --RowCommands-focus-outer: var(--colorStrokeFocus2, #ffffff);
+    --RowCommands-surface-subtle: var(--colorNeutralBackground3, #333333);
+    --RowCommands-success-foreground: var(--colorPaletteGreenForeground1, #54b054);
+    --RowCommands-success-background: var(--colorPaletteGreenBackground1, #052505);
+    --RowCommands-success-stroke: var(--colorPaletteGreenBorder1, #237c23);
+    --RowCommands-danger-background: var(--colorPaletteRedBackground1, #3b1113);
+    --RowCommands-danger-stroke: var(--colorPaletteRedBorder1, #8b2b30);
 }
 
 .RowCommands-message {
@@ -104,6 +116,13 @@
 .RowCommands-scroll {
     overflow-x: auto;
     width: 100%;
+    /*
+      A flex item's default `min-width: auto` is a content-based minimum, so a
+      control laid out as a flex *row* item refuses to shrink below its table
+      and the scrollbar never appears. Harmless where the control is a column
+      item, which is the usual case.
+    */
+    min-width: 0;
 }
 
 /*
@@ -120,9 +139,31 @@
 }
 
 .RowCommands-table {
-    border-collapse: collapse;
+    /*
+      `separate`, not `collapse`, and only because of the sticky command column.
+      With collapsed borders a cell's background does not paint under the border
+      box, so the sticky column let a one-pixel strip of the column beneath it
+      show through as the table scrolled — a flicker of the wrong text down its
+      leading edge. Nothing else here depends on collapsing: the cells draw a
+      `border-bottom` each and no two borders ever meet, so there is nothing to
+      merge and `border-spacing: 0` puts the geometry back exactly.
+    */
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
     table-layout: fixed;
+    /*
+      **Scroll rather than squeeze.** Without a floor, `table-layout: fixed`
+      divides whatever width it is given between the columns however narrow that
+      is — five columns in a phone-width subgrid become five columns of about
+      forty pixels, every value clipped to an ellipsis, and the table still
+      technically "fits". A minimum turns that into a horizontal scroll, which is
+      a thing a person can do something about.
+
+      The number is set inline from index.ts, because it is the sum of the view's
+      own column widths plus the command column — a constant here would be a
+      guess about a view this control has not seen.
+    */
 }
 
 /* The title names the table for a screen reader without taking up space. */
@@ -220,7 +261,39 @@
 */
 .RowCommands-commandsHeader,
 .RowCommands-table td:last-child {
-    width: 22em;
+    /*
+      No width here. It is set inline from `COMMANDS_WIDTH` in index.ts,
+      because the table's own minimum is computed from it plus the columns'
+      widths — and the same number written in two languages is the kind of thing
+      that drifts the first time somebody adjusts the padding.
+    */
+    /*
+      Pinned to the right edge, so the commands stay reachable while the data
+      columns scroll under them. Without this the whole point of the control is
+      the first thing to leave the screen on a narrow host — and the commands
+      are the one column a reader cannot do without, since every other column is
+      just a value they could have read on the form.
+
+      It needs an opaque background of its own: the default is transparent, and
+      the rows would otherwise show through as they pass beneath.
+    */
+    position: sticky;
+    right: 0;
+    background: var(--RowCommands-background);
+    border-left: 1px solid var(--RowCommands-stroke-subtle);
+}
+
+/* The header cell has its own background, and it has to win over the row's. */
+.RowCommands-commandsHeader {
+    background: var(--RowCommands-background);
+}
+
+/*
+  The row hover has to reach the sticky cell too, or the commands sit in a
+  stripe of the wrong colour exactly when the pointer is over them.
+*/
+.RowCommands-table tbody tr:hover td:last-child {
+    background: var(--RowCommands-row-hover);
 }
 
 .RowCommands-commandsHeader {
@@ -247,6 +320,15 @@
     padding: var(--spacingVerticalXXS, 2px) var(--spacingHorizontalS, 8px);
     cursor: pointer;
     white-space: nowrap;
+    /*
+      WCAG 2.2 SC 2.5.8 asks for 24 CSS pixels. A 16px glyph with 2px of padding
+      is 20 and fails it, which the first version of this shipped. 32 clears the
+      requirement with room, fits three commands inside a 44px row, and is the
+      size the same button is in compact mode — so the target does not change
+      when the label goes away.
+    */
+    min-height: 32px;
+    box-sizing: border-box;
     transition:
         background-color var(--RowCommands-duration) var(--RowCommands-curve),
         color var(--RowCommands-duration) var(--RowCommands-curve),
@@ -298,20 +380,100 @@
     height: 16px;
 }
 
-/*
-  The live region.
+/* ---- compact: the container is too narrow to carry the labels ---------- */
 
-  Empty until something is announced, and it must not reserve space when it is —
-  a table that shifts down by a line every time a delete is confirmed is worse
-  than one that says nothing. `:empty` is the whole mechanism.
+/*
+  Set from `allocatedWidth` in index.ts rather than from a media or container
+  query. A media query would be asking about the *viewport*, which says nothing
+  about a control sitting in a 380px form section on a desktop; a container
+  query would ask the element's own box, which on a shrink-to-fit host is the
+  same circular measurement the root's max-width exists to break.
+
+  The glyph carries the command on its own here. That is a real cost and it is
+  paid for by the `aria-label` and the `title`, both of which name the row as
+  well as the verb and neither of which depends on the text being visible.
+*/
+.RowCommands--compact .RowCommands-commandLabel {
+    /* Not `display: none`: the accessible name comes from the aria-label, but
+       the title tooltip and any future find-in-page should still have it. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.RowCommands--compact .RowCommands-command {
+    gap: 0;
+    min-width: 32px;
+    justify-content: center;
+    padding-inline: var(--spacingHorizontalXS, 4px);
+}
+
+
+
+/*
+  The live region, as a message bar rather than a loose sentence.
+
+  The first version of this was `margin: 0` and a grey colour, which on a real
+  form put an unstyled line of prose hard against the table header — it read as
+  a stray paragraph somebody had left in the page rather than as the control
+  reporting something. A message about a record that was just deleted is a
+  notification, and it has to look like one: a surface, a border, an icon, and
+  enough padding to be told apart from the table under it.
+
+  It must not reserve space when there is nothing to say — a table that shifts
+  down a line every time a delete is confirmed is worse than one that says
+  nothing — so `:empty` still does that work. It is `display: flex` rather than
+  `block` when it is not empty, which is why the rule below overrides it.
 */
 .RowCommands-status {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacingHorizontalS, 8px);
     margin: 0;
-    color: var(--RowCommands-foreground-secondary);
+    padding: var(--spacingVerticalS, 8px) var(--spacingHorizontalM, 12px);
+    border: 1px solid var(--RowCommands-stroke-subtle);
+    border-radius: var(--RowCommands-radius);
+    background: var(--RowCommands-surface-subtle);
+    color: var(--RowCommands-foreground);
+    font-size: var(--fontSizeBase200, 12px);
+    line-height: 16px;
 }
 
 .RowCommands-status:empty {
     display: none;
+}
+
+/* The glyph sits on the first line of text rather than centred against a
+   sentence that may wrap to three. */
+.RowCommands-status .RowCommands-icon {
+    margin-top: 0;
+    color: var(--RowCommands-foreground-secondary);
+}
+
+.RowCommands-status--success {
+    border-color: var(--RowCommands-success-stroke);
+    background: var(--RowCommands-success-background);
+}
+
+.RowCommands-status--success .RowCommands-icon {
+    color: var(--RowCommands-success-foreground);
+}
+
+/*
+  A failure is the one that stays on screen — see `announce` — so it is also
+  the one that has to be unmistakable at a glance, without relying on the reader
+  having noticed the dialog that preceded it.
+*/
+.RowCommands-status--error {
+    border-color: var(--RowCommands-danger-stroke);
+    background: var(--RowCommands-danger-background);
+}
+
+.RowCommands-status--error .RowCommands-icon {
+    color: var(--RowCommands-foreground-danger);
 }
 
 .RowCommands-surface {
@@ -472,6 +634,18 @@
     .RowCommands-command:focus-visible,
     .RowCommands-pager button:focus-visible {
         outline-color: Highlight;
+    }
+
+    /* The message bar's tint is gone here, so the border is the only thing
+       left saying it is a bar at all — and the sticky column needs an opaque
+       background or the rows show through it. */
+    .RowCommands-status {
+        border-color: ButtonBorder;
+    }
+
+    .RowCommands-commandsHeader,
+    .RowCommands-table td:last-child {
+        background: Canvas;
     }
 }
 

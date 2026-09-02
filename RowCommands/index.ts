@@ -11,6 +11,39 @@ const DESCENDING = 1 as SortDirection;
 /** The platform's ceiling on a page. Not in the type definitions. */
 const MAX_PAGE_SIZE = 250;
 
+/**
+ * Below this many pixels of container, the commands lose their labels.
+ *
+ * A judgement rather than a breakpoint anybody standardised, tuned against the
+ * dev harness at a phone width: a five-column view plus three labelled commands
+ * needs about this much before the data columns start being squeezed into
+ * nothing. It is the *control's* width and not the viewport's, which is the
+ * only measurement that means anything here — the same control is full-width on
+ * a phone and 380px wide in a form section on a desktop.
+ */
+const COMPACT_BELOW = 560;
+
+/** How long a success or information message stays on screen. */
+const STATUS_TIMEOUT_MS = 6000;
+
+/**
+ * The command column's width, in pixels, wide and compact.
+ *
+ * Held here rather than in the stylesheet because the table's minimum width is
+ * computed from it — the columns' own widths plus this — and two copies of the
+ * number in two languages is the kind of thing that drifts silently the first
+ * time somebody adjusts the padding.
+ *
+ * Compact is three 32px buttons, two 4px gaps and the cell's padding, stated as
+ * one number rather than left to the content so the right-hand edge does not
+ * move between a row with one command and a row with three.
+ */
+const COMMANDS_WIDTH = 308;
+const COMMANDS_WIDTH_COMPACT = 152;
+
+/** What a column is given when the host reports no width for it. */
+const FALLBACK_COLUMN_WIDTH = 140;
+
 /** The three commands, as they appear on `invokedCommand`. */
 type CommandName = 'open' | 'url' | 'delete';
 
@@ -98,8 +131,14 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
     /** Which chrome button to put focus back on after the next render. */
     private restoreFocus: 'previous' | 'next' | null = null;
 
+    /** Whether the container is too narrow to carry the command labels. */
+    private compact = false;
+
+    /** Clears a success or information message; errors are left up. */
+    private statusTimer: number | undefined;
+
     public init(
-        _context: ComponentFramework.Context<IInputs>,
+        context: ComponentFramework.Context<IInputs>,
         notifyOutputChanged: () => void,
         _state: ComponentFramework.Dictionary,
         container: HTMLDivElement,
@@ -107,6 +146,26 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         this.notifyOutputChanged = notifyOutputChanged;
         this.container = container;
         this.container.classList.add('RowCommands');
+
+        /*
+         * Ask for a width, because without this the platform supplies none.
+         *
+         * `allocatedWidth` is **-1 until a control calls this**, and two things
+         * here need a real number. The commands drop their labels below
+         * `COMPACT_BELOW`, and the table can only scroll inside a container
+         * that has a definite width — a host that lays the control out
+         * shrink-to-fit (`inline-block`, `fit-content`, a `table` cell) takes
+         * its width *from* the content, so `overflow-x: auto` has nothing to
+         * scroll inside and the columns are crushed instead. `width: 100%` on
+         * the control resolves against a number the control itself produced,
+         * which is a circle; the allocated width is the number from outside it.
+         *
+         * Feature-detected because it is typed as always present, which is a
+         * claim about the type definitions rather than about the host.
+         */
+        if (typeof context.mode.trackContainerResize === 'function') {
+            context.mode.trackContainerResize(true);
+        }
 
         /*
          * Built once, and outside the part `render` clears.
@@ -133,8 +192,37 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const dataset = context.parameters.records;
 
         this.applyTheme(context);
+        this.applyWidth(context);
         this.applyPageSize(context, dataset);
         this.render(context, dataset);
+    }
+
+    /**
+     * Two things follow from the width the host allocated, and neither can be
+     * done in CSS alone.
+     *
+     * **A pixel ceiling on the root**, so the table has something definite to
+     * scroll inside. See the note in `init`.
+     *
+     * **Compact commands**, below `COMPACT_BELOW`. A container query would be
+     * the tidier mechanism and it is the wrong one twice over: it reads the
+     * element's own box, which on a shrink-to-fit host is the circle again, and
+     * nothing in `dev/dom.js` computes layout, so a CSS-only rule is a
+     * behaviour no assertion in this repository could reach. This one is driven
+     * by a number the platform hands over, so `dev/smoke.js` can set it.
+     *
+     * `-1` and `0` are both "no answer" — the first before the control asks,
+     * the second before the host has laid it out — and both mean *leave the
+     * labels alone*. Guessing compact from a missing measurement would strip
+     * the labels off every control on a host that reports nothing.
+     */
+    private applyWidth(context: ComponentFramework.Context<IInputs>): void {
+        const allocated = context.mode.allocatedWidth;
+        const known = typeof allocated === 'number' && allocated > 0;
+
+        this.container.style.maxWidth = known ? `${allocated}px` : '';
+        this.compact = known && allocated < COMPACT_BELOW;
+        this.container.classList.toggle('RowCommands--compact', this.compact);
     }
 
     /**
@@ -178,6 +266,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         // writing to what is about to be cleared.
         this.disposed = true;
         this.pending = '';
+        this.clearStatusTimer();
 
         // Listeners are attached to elements inside `container`, which the
         // platform removes — but the container itself is reused, so clear it.
@@ -322,9 +411,40 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
         const head = table.createTHead().insertRow();
 
-        for (const column of columns) {
+        /*
+         * The maker's own column widths, from the view designer.
+         *
+         * `visualSizeFactor` is what the person who built the view dragged the
+         * column edges to, and ignoring it is why every column came out the
+         * same width and every value was truncated to an ellipsis — the primary
+         * column, which is the one anybody reads, got the same 74 pixels as a
+         * status. Under `table-layout: fixed` a width on the header row is what
+         * decides the column, so this is where it goes.
+         *
+         * **Canvas reports 0 for every column**, and a table of zero-width
+         * columns is not a degraded layout, it is an invisible one. So the
+         * factors are only used when at least one of them is real; otherwise
+         * every column gets the same fallback and the result is what it was
+         * before.
+         */
+        const factors = columns.map((column) => (column.visualSizeFactor > 0 ? column.visualSizeFactor : 0));
+        const measured = factors.some((factor) => factor > 0);
+        const widths = factors.map((factor) =>
+            measured ? Math.max(factor, 64) : FALLBACK_COLUMN_WIDTH,
+        );
+        const commandsWidth = this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH;
+
+        /*
+         * And the floor the whole thing scrolls inside. Below this the columns
+         * would be squeezed rather than scrolled, which is the state the
+         * ellipsis hides: a table that technically fits and says nothing.
+         */
+        table.style.minWidth = `${widths.reduce((total, width) => total + width, 0) + commandsWidth}px`;
+
+        for (const [index, column] of columns.entries()) {
             const th = document.createElement('th');
             th.scope = 'col';
+            th.style.width = `${widths[index]}px`;
 
             if (column.disableSorting) {
                 th.textContent = column.displayName;
@@ -356,6 +476,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const commandsHeader = document.createElement('th');
         commandsHeader.scope = 'col';
         commandsHeader.className = 'RowCommands-commandsHeader';
+        commandsHeader.style.width = `${commandsWidth}px`;
         commandsHeader.textContent = getString('RowCommands_Commands');
         head.appendChild(commandsHeader);
 
@@ -475,12 +596,22 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
     }
 
     /**
-     * One command button: a glyph, a visible label, and a title naming the row.
+     * One command button: a glyph, a label, and a name that survives the label
+     * being taken away.
      *
-     * The label is text rather than an `aria-label` on an icon-only button —
-     * three unlabelled glyphs per row is a puzzle for everyone, not only for a
-     * screen reader, and the row's own identity goes in the `title` and in the
-     * group's accessible name instead of being repeated three times.
+     * **The `aria-label` is set whether or not the label is visible**, and that
+     * is the whole reason this is safe to collapse. Left to the text content,
+     * the accessible name would silently become the `title` in compact mode —
+     * which happens to work and is a rule about fallback order rather than an
+     * intention, and it would break the day somebody removed the title. Setting
+     * it outright means the narrow control and the wide one are the same
+     * control to a screen reader.
+     *
+     * It names the row as well as the verb — *Open Fabrikam Manufacturing* —
+     * because in compact mode the visible glyph is all there is, and "Open"
+     * repeated down twenty-five rows identifies nothing. The visible text stays
+     * a substring of it, so the accessible name still contains the visible
+     * label where there is one.
      */
     private command(
         name: CommandName,
@@ -491,12 +622,17 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         run: () => void,
     ): HTMLButtonElement {
         const button = document.createElement('button');
+        const caption = document.createElement('span');
+
+        caption.className = 'RowCommands-commandLabel';
+        caption.textContent = text;
 
         button.type = 'button';
         button.className = `RowCommands-command RowCommands-command--${name}`;
         button.title = title;
+        button.setAttribute('aria-label', title);
         button.disabled = !enabled;
-        button.append(icon(glyph), document.createTextNode(text));
+        button.append(icon(glyph), caption);
 
         /*
          * Guarded here rather than trusted to `button.disabled`. A disabled
@@ -532,10 +668,45 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         this.notifyOutputChanged();
     }
 
-    private announce(text: string): void {
-        // Blanked first, so an identical second announcement still announces.
+    /**
+     * Say what happened, in the one place a screen reader is listening.
+     *
+     * Two things beyond writing the text. **The region is blanked first**, so
+     * an identical second announcement still announces — assistive technology
+     * reports a *change*, and deleting two records with the same name would
+     * otherwise be silent the second time.
+     *
+     * And **a success or an information message clears itself**, because this
+     * bar sits above the table for as long as it has text in it and a sentence
+     * about a record deleted ten minutes ago is furniture. A failure does not
+     * clear: the platform's error dialog has already been dismissed by then, so
+     * this line is the only remaining trace that anything went wrong, and it
+     * stays until the next command replaces it.
+     */
+    private announce(text: string, kind: 'info' | 'success' | 'error' = 'info'): void {
+        this.clearStatusTimer();
+
+        this.status.className = `RowCommands-status RowCommands-status--${kind}`;
         this.status.textContent = '';
-        this.status.textContent = text;
+        const glyph = kind === 'error' ? GLYPH_ERROR : kind === 'success' ? GLYPH_SUCCESS : GLYPH_INFO;
+
+        this.status.append(icon(glyph), document.createTextNode(text));
+
+        if (kind === 'error') {
+            return;
+        }
+
+        this.statusTimer = window.setTimeout(() => {
+            this.statusTimer = undefined;
+            this.status.textContent = '';
+        }, STATUS_TIMEOUT_MS);
+    }
+
+    private clearStatusTimer(): void {
+        if (this.statusTimer !== undefined) {
+            window.clearTimeout(this.statusTimer);
+            this.statusTimer = undefined;
+        }
     }
 
     /**
@@ -592,7 +763,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                  * top of whatever the platform already showed.
                  */
                 if (!this.disposed) {
-                    this.announce(context.resources.getString('RowCommands_OpenFailed'));
+                    this.announce(context.resources.getString('RowCommands_OpenFailed'), 'error');
                 }
             });
     }
@@ -687,7 +858,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                         return;
                     }
 
-                    this.announce(getString('RowCommands_Deleted').replace('{0}', label));
+                    this.announce(getString('RowCommands_Deleted').replace('{0}', label), 'success');
                     dataset.refresh();
                 });
             })
@@ -698,7 +869,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
                 const detail = describeError(error);
 
-                this.announce(getString('RowCommands_DeleteFailed').replace('{0}', label));
+                this.announce(getString('RowCommands_DeleteFailed').replace('{0}', label), 'error');
 
                 const openErrorDialog = navigation.openErrorDialog;
 
@@ -992,6 +1163,13 @@ const GLYPH_OPEN =
     'M6 3h5.5a.5.5 0 0 1 0 1H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8.5a.5.5 0 0 1 1 0V14a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z';
 const GLYPH_LAUNCH =
     'M12.5 3h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4.7l-5.15 5.15a.5.5 0 0 1-.7-.7L15.3 4h-2.8a.5.5 0 0 1 0-1ZM5 4h3.5a.5.5 0 0 1 0 1H5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3.5a.5.5 0 0 1 1 0V15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z';
+/** A filled circle with a tick, an "i" and an "!", at the same 20px cut. */
+const GLYPH_SUCCESS =
+    'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm3.36 5.65a.75.75 0 0 0-1.06 0L9 10.94 7.7 9.65a.75.75 0 1 0-1.06 1.06l1.83 1.83a.75.75 0 0 0 1.06 0l3.83-3.83a.75.75 0 0 0 0-1.06Z';
+const GLYPH_INFO =
+    'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 6.5a.75.75 0 0 0-.75.75v4a.75.75 0 0 0 1.5 0v-4A.75.75 0 0 0 10 8.5Zm0-3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Z';
+const GLYPH_ERROR =
+    'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 9.25a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Zm0-6a.75.75 0 0 0-.75.75v4a.75.75 0 0 0 1.5 0v-4A.75.75 0 0 0 10 5.25Z';
 const GLYPH_DELETE =
     'M8.5 3h3a1.5 1.5 0 0 1 1.5 1.5V5h3a.5.5 0 0 1 0 1h-.55l-.85 9.36A2 2 0 0 1 12.61 17H7.39a2 2 0 0 1-1.99-1.64L4.55 6H4a.5.5 0 0 1 0-1h3v-.5A1.5 1.5 0 0 1 8.5 3Zm-.5 2h4v-.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5V5Zm-2.45 1 .84 9.27a1 1 0 0 0 1 .73h5.22a1 1 0 0 0 1-.73L14.45 6h-8.9Zm2.95 1.5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V8a.5.5 0 0 1 .5-.5Zm3 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V8a.5.5 0 0 1 .5-.5Z';
 

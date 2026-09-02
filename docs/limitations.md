@@ -45,4 +45,18 @@ Each of these is a constraint that was chosen, not a defect waiting on a fix.
   A user without the Delete privilege sees the button and gets the platform's
   error dialog when the server refuses.
 
+- **Below about 560 pixels the commands lose their labels.** The buttons stay,
+  in the same order, at the same size, and each still names itself and its row
+  to a screen reader — but visually there is only the icon. Under that width a
+  labelled command column takes more than half a phone screen, and the choice is
+  between icons and a table with nothing readable in it. The measurement is the
+  control's own width, not the browser's, so a narrow form section on a desktop
+  collapses too.
+
+- **Wide views scroll sideways rather than squeezing.** The columns keep the
+  widths the view designer gave them, and the command column stays pinned to the
+  right edge while the rest scrolls under it. That is deliberate: columns
+  squeezed to forty pixels each are an ellipsis in every cell, which reads as a
+  table that fits when nothing in it can be read.
+
 - **Not supported on Power Pages.**

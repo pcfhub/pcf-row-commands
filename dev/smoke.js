@@ -113,6 +113,10 @@ const TEMPLATES = {
     RowCommands_Deleted: '{0} was deleted.',
     RowCommands_DeleteFailed: '{0} could not be deleted.',
     RowCommands_CommandsFor: 'Commands for {0}',
+    // Real, not marked, because an assertion below checks that the visible
+    // label is a substring of the accessible name. Marked, the two could not
+    // be compared at all. The other twenty-odd keys still prove the resx path.
+    RowCommands_Open: 'Open',
 };
 
 const speaks = (key) => (TEMPLATES[key] !== undefined ? TEMPLATES[key] : marked(key));
@@ -475,6 +479,84 @@ check(
     rowsOf(noDialogs).length === 5 && commandsIn(rowsOf(noDialogs)[0]).length === 2,
 );
 
+/* =================================================== the narrow container */
+
+check(
+    'asks the platform to report its width, without which there is none',
+    view.calls().indexOf('trackContainerResize(true)') !== -1,
+    view.calls().join(' | '),
+);
+
+/*
+ * -1 is the platform's answer before anything is laid out, and 0 is a host that
+ * measured nothing. Both mean "no answer" — and guessing compact from a missing
+ * measurement would strip the labels off every control on a host that reports
+ * neither.
+ */
+check(
+    'an unmeasured container is not treated as a narrow one',
+    view.container.classList.contains('RowCommands--compact') === false &&
+        (view.container.style.maxWidth || '') === '',
+    `width -1 -> compact=${view.container.classList.contains('RowCommands--compact')}`,
+);
+
+const wide = bind({ width: 900 });
+
+check(
+    'a wide container keeps the labels, and takes a pixel ceiling',
+    wide.container.classList.contains('RowCommands--compact') === false &&
+        wide.container.style.maxWidth === '900px',
+    wide.container.style.maxWidth,
+);
+
+const narrow = bind({ width: 380, inputs: { showDelete: true } });
+
+check(
+    'a phone-width container goes compact',
+    narrow.container.classList.contains('RowCommands--compact'),
+    narrow.container.style.maxWidth,
+);
+
+check(
+    'and still draws every command it drew before — collapsing is not hiding',
+    commandsIn(rowsOf(narrow)[0]).length === 3,
+    String(commandsIn(rowsOf(narrow)[0]).length),
+);
+
+/*
+ * The assertion the compact mode rests on. The label is hidden by CSS, which
+ * nothing here can see — so what has to be true in the DOM is that the button
+ * never depended on the label for its name in the first place.
+ */
+check(
+    'every command names itself and its row, whether or not the label is visible',
+    commandOn(narrow, 0, 'open').getAttribute('aria-label') === 'Open Fabrikam Manufacturing' &&
+        commandOn(wide, 0, 'open').getAttribute('aria-label') === 'Open Fabrikam Manufacturing',
+    commandOn(narrow, 0, 'open').getAttribute('aria-label'),
+);
+
+check(
+    'and the visible label is a substring of that name, so the two agree',
+    commandOn(narrow, 0, 'open')
+        .getAttribute('aria-label')
+        .indexOf(narrow.find('.RowCommands-commandLabel').textContent) === 0,
+    narrow.find('.RowCommands-commandLabel').textContent,
+);
+
+/*
+ * Counted against the commands actually drawn rather than against rows times
+ * three — the first version of this assumed a fixed three per row and failed,
+ * which is the control being right: a row whose URL column is empty has two
+ * commands, and that is the whole behaviour.
+ */
+const drawnCommands = rowsOf(narrow).reduce((total, row) => total + commandsIn(row).length, 0);
+
+check(
+    'the label is still in the DOM, moved off-screen rather than deleted',
+    narrow.findAll('.RowCommands-commandLabel').length === drawnCommands && drawnCommands > 0,
+    `${narrow.findAll('.RowCommands-commandLabel').length} labels, ${drawnCommands} commands`,
+);
+
 /* ====================================================== the delete itself */
 
 (async () => {
@@ -566,6 +648,27 @@ check(
         confirmed.find('.RowCommands-status').textContent,
     );
 
+    check(
+        'as a success, not as an undifferentiated line of grey text',
+        confirmed.find('.RowCommands-status').className.indexOf('RowCommands-status--success') !== -1,
+        confirmed.find('.RowCommands-status').className,
+    );
+
+    /*
+     * The bar sits above the table for as long as it has text in it, so a
+     * sentence about a record deleted ten minutes ago is furniture. Six seconds
+     * is long enough to read and short enough not to become part of the form.
+     */
+    check('a success message is holding a timer', time.pending() >= 1, String(time.pending()));
+
+    time.advance(6000);
+
+    check(
+        'and clears itself, rather than living above the table forever',
+        confirmed.find('.RowCommands-status').textContent === '',
+        confirmed.find('.RowCommands-status').textContent,
+    );
+
     /* ----------------------------------------------------------- failed */
 
     const failing = bind({ inputs: { showDelete: true }, dialogs: 'confirmed', webApiFails: true });
@@ -615,6 +718,26 @@ check(
 
     check(
         'a failure is announced too, not only shown in a dialog',
+        failing.find('.RowCommands-status').textContent.indexOf('could not be deleted') !== -1,
+        failing.find('.RowCommands-status').textContent,
+    );
+
+    check(
+        'and is marked as an error rather than sharing the success styling',
+        failing.find('.RowCommands-status').className.indexOf('RowCommands-status--error') !== -1,
+        failing.find('.RowCommands-status').className,
+    );
+
+    /*
+     * **A failure does not clear itself**, and that asymmetry is deliberate: by
+     * the time anybody looks, the platform's error dialog has been dismissed,
+     * so this line is the only remaining trace that the delete did not happen.
+     * It stays until the next command replaces it.
+     */
+    time.advance(60000);
+
+    check(
+        'and stays put, because the error dialog it followed is long gone',
         failing.find('.RowCommands-status').textContent.indexOf('could not be deleted') !== -1,
         failing.find('.RowCommands-status').textContent,
     );
@@ -681,7 +804,22 @@ check(
         Object.values(dom.document.listeners).reduce((total, list) => total + list.length, 0);
     const listenersBefore = listeners();
 
-    const short = bind({ inputs: { showDelete: true } });
+    const short = bind({ inputs: { showDelete: true }, dialogs: 'confirmed' });
+
+    press(commandOn(short, 0, 'delete'));
+    await settled();
+
+    /*
+     * The positive half, first. A teardown assertion that only checks the
+     * count returns to zero passes trivially against a control that took no
+     * timer at all — which is what this file did until the status bar started
+     * clearing itself.
+     */
+    check(
+        'a control that has announced something is holding a timer',
+        time.pending() === timersBefore + 1,
+        `${timersBefore} before, ${time.pending()} now`,
+    );
 
     short.settle();
 
