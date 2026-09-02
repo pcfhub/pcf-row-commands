@@ -450,48 +450,6 @@ check(
     'no navigation, no openUrl',
 );
 
-/* ============================================ a record with no name */
-
-/*
- * Reported from a real form, and it was not a bug: a view sorted by name puts
- * every unnamed record at the top, so the first screenful was blank rows with a
- * working command column beside them. Nothing had failed. It just looked
- * exactly like something had — which is a problem worth fixing even when the
- * rendering is correct, because the row next to a Delete button has to be
- * identifiable.
- */
-const nameless = bind({ pageSize: 12 });
-const namelessRow = rowsOf(nameless)[8];
-
-check(
-    'a record whose primary column is empty says so, rather than rendering blank',
-    namelessRow.querySelector('td').textContent === 'resx:RowCommands_Untitled',
-    `"${namelessRow.querySelector('td').textContent}"`,
-);
-
-check(
-    'and the placeholder is marked, so it can be styled as an absence not a value',
-    namelessRow.querySelector('td').className === 'RowCommands-untitled',
-    namelessRow.querySelector('td').className,
-);
-
-/*
- * Only the primary column. An empty phone number is an empty phone number, and
- * a placeholder in every blank cell would be noise rather than information.
- */
-check(
-    'and no other empty cell is filled in — it is the row identity, not every gap',
-    namelessRow.querySelectorAll('td').filter((cell) => cell.textContent === 'resx:RowCommands_Untitled')
-        .length === 1,
-    namelessRow.querySelectorAll('td').map((cell) => `"${cell.textContent}"`).join(' '),
-);
-
-check(
-    'and its commands name it the same way the cell does',
-    commandOn(nameless, 8, 'open').getAttribute('aria-label') === 'Open resx:RowCommands_Untitled',
-    commandOn(nameless, 8, 'open').getAttribute('aria-label'),
-);
-
 /* ============================================== which hosts can delete */
 
 const deletable = bind({ inputs: { showDelete: true } });

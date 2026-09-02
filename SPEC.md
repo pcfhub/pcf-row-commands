@@ -212,24 +212,6 @@ error dialog has been dismissed and this line is the only remaining trace.
 Neither of those is something the harness could have shown. The first needed a
 Dataverse and the second needed somebody to look at it on a form.
 
-**And a third, which was reported as a bug and was not one.** The top of the
-view was a run of ten completely blank rows with working commands beside them.
-Nothing had failed: they were real records with no Account Name, and a view
-sorted ascending by name puts every unnamed record first. The control was
-rendering exactly what it was given.
-
-That is still worth fixing, because *correct* and *legible* are different
-claims. A blank row is indistinguishable from a row that failed to render, and
-this one has a Delete button on it. The primary cell now shows the same
-`RowCommands_Untitled` string the commands and the confirmation dialog already
-used, muted and italic so it reads as an absence rather than as a name somebody
-typed. Only the primary column: an empty phone number is an empty phone number,
-and a placeholder in every gap would be noise.
-
-The fixture grew the case — `a09` has no name — because nothing in it had one
-before, which is why twelve records' worth of edges missed the row shape that a
-real view produced within a day.
-
 ## Not verified
 
 Nothing in this repository has been on a real Power App **except what is

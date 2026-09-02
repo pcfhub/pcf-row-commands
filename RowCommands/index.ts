@@ -505,40 +505,15 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
             const row = body.insertRow();
 
-            /*
-             * A record whose primary column is empty is a real record, and
-             * without this it renders as a blank row — indistinguishable from a
-             * row that failed to render, and sitting next to a Delete button.
-             *
-             * Seen on a real form: a view sorted by name puts every unnamed
-             * record at the top, so the first thing anybody saw was ten blank
-             * rows and a working command column beside them. Nothing was wrong;
-             * it just looked exactly like something was.
-             *
-             * **Only the primary column gets this.** An empty phone number is
-             * an empty phone number and a placeholder in every blank cell would
-             * be noise — it is the row's *identity* that has to be legible,
-             * because that is what the commands act on and what the
-             * confirmation dialog names.
-             */
-            const primaryValue = record.getFormattedValue(primary.name);
-            const label = primaryValue !== '' ? primaryValue : getString('RowCommands_Untitled');
-
             for (const column of columns) {
                 const cell = row.insertCell();
-                const value = record.getFormattedValue(column.name);
-
-                if (value === '' && column.name === primary.name) {
-                    cell.textContent = label;
-                    cell.className = 'RowCommands-untitled';
-
-                    continue;
-                }
 
                 // `getFormattedValue` takes the column's *name*, never its
                 // alias.
-                cell.textContent = value;
+                cell.textContent = record.getFormattedValue(column.name);
             }
+
+            const label = record.getFormattedValue(primary.name) || getString('RowCommands_Untitled');
 
             row.insertCell().appendChild(this.commands(context, dataset, id, label, urls, getString));
         }

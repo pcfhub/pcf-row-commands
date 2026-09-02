@@ -58,7 +58,7 @@ and skips the ones marked hidden. There is nothing to configure per column.
 
 | Metadata | Effect |
 | --- | --- |
-| `isPrimary` | Its value names the row: it goes in each command's tooltip and in the confirmation the delete asks for. Falls back to the first visible column. A record whose primary value is empty shows a muted placeholder in that cell rather than a blank one, so it reads as a record with no name rather than as a row that failed to render. |
+| `isPrimary` | Its value names the row: it goes in each command's tooltip and in the confirmation the delete asks for. Falls back to the first visible column. |
 | `disableSorting` | No sort control on that column, and no `aria-sort`. |
 | `isHidden` | The column is not drawn. |
 | `visualSizeFactor` | The column's width, as the view designer set it. Canvas reports 0 for every column, and every column then gets the same default rather than none. |
