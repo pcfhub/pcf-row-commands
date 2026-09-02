@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest>
+  <!--
+    The version here is what the Power Platform upgrades on, and the release
+    workflow refuses to publish a tag that disagrees with it. Bump this,
+    Solution/src/Other/Solution.xml and package.json in the same commit.
+  -->
+  <control namespace="PCFHub"
+           constructor="RowCommands"
+           version="0.1.0"
+           display-name-key="RowCommands_Name"
+           description-key="RowCommands_Desc"
+           control-type="standard">
+
+    <!--
+      Nothing here talks to a third party. The URL command hands a string to
+      `context.navigation.openUrl` and the platform opens it — the control makes
+      no request of its own, so this stays disabled and the component stays
+      non-premium.
+    -->
+    <external-service-usage enabled="false" />
+
+    <!--
+      One role, and it is the switch for a whole command.
+
+      `urlField` is optional. When the maker maps a column, the row gets a
+      **Launch** button; when they do not, it does not appear. That is why there
+      is no `showUrl` input property: the mapping *is* the switch, and a boolean
+      beside it would be a second way to say the same thing that can disagree
+      with the first.
+
+      **Found by `alias`, read by `name`.** `dataset.columns.find(c => c.alias
+      === 'urlField')` gives the column; `record.getValue(column.name)` gives the
+      value. Backwards, the find never matches, nothing errors, and the control
+      renders no Launch button against a real view — which is how that bug
+      reached production in pcf-tag-list. `demo/records.json` deliberately gives
+      this column an `alias` that differs from its `name` so the mistake fails
+      where it can be seen.
+
+      The type group is not decoration. A URL lives in a `SingleLine.URL` column
+      on a table designed for one and in a `SingleLine.Text` column on every
+      table that grew one later, and `of-type` restricting to the wrong one of
+      those does not fail — it empties the column picker in the configuration
+      pane, which reads as a broken control. Both types generate
+      `StringProperty`, so this costs no cast; what it may cost is canvas, since
+      `of-type-group` is commonly read as model-driven only. That is recorded in
+      SPEC.md under *Not verified* rather than assumed either way.
+
+      No `cds-data-set-options`: this control never calls
+      `setSelectedRecordIds()`, so the subgrid command bar would be furniture
+      with nothing behind it, and the view selector would let a user swap in a
+      view whose columns the row commands were not configured for.
+    -->
+    <type-group name="commandUrl">
+      <type>SingleLine.URL</type>
+      <type>SingleLine.Text</type>
+    </type-group>
+
+    <data-set name="records" display-name-key="Records_DataSet_Name">
+      <property-set name="urlField"
+                    display-name-key="UrlField_Name"
+                    description-key="UrlField_Desc"
+                    of-type-group="commandUrl"
+                    usage="bound"
+                    required="false" />
+    </data-set>
+
+    <!--
+      Inverted, and that is the fix rather than a naming quirk.
+
+      `refreshTypes` generates `TwoOptionsProperty` with `raw: boolean` — not
+      `boolean | null` — so a maker who never touches a checkbox gets `false`,
+      and `default-value="true"` does not close the gap. A `showOpen` property
+      would therefore ship silently switched off, and the maker would have to
+      find a checkbox nobody told them about. Naming it for the *unusual* choice
+      puts the platform's `false` on the behaviour almost everybody wants.
+    -->
+    <property name="hideOpen"
+              display-name-key="HideOpen_Name"
+              description-key="HideOpen_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="false" />
+
+    <!--
+      And this one is a `showX` on purpose, which is the same rule read the
+      other way. Delete should be off until somebody asks for it, so the
+      platform's `false` is already the right answer and inverting the name
+      would put a destructive command behind a double negative.
+
+      `default-value="false"` is stated rather than omitted, and it is worth
+      knowing that it arrives at the control as the *string* `"false"` — truthy
+      — on any host that hands defaults over raw. Every read goes through
+      `asBoolean`.
+    -->
+    <property name="showDelete"
+              display-name-key="ShowDelete_Name"
+              description-key="ShowDelete_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="false" />
+
+    <property name="pageSize"
+              display-name-key="PageSize_Name"
+              description-key="PageSize_Desc"
+              of-type="Whole.None"
+              usage="input"
+              required="false"
+              default-value="25" />
+
+    <!--
+      Three outputs, and the third is the one that is easy to leave out.
+
+      `invokedRecordId` and `invokedCommand` say what happened. `invokeCount`
+      says that it happened *again*: OnChange fires on a change, not on a write,
+      so pressing Open twice on the same row is one event and one silence
+      without a counter. pcf-action-button found this the hard way with its
+      PressCount, and it is the same family as pcf-star-rating's `?? undefined`
+      clear.
+
+      All three are notified *before* the platform call, so a canvas app sees
+      the press even on a host where the call itself does nothing.
+    -->
+    <property name="invokedRecordId"
+              display-name-key="InvokedRecordId_Name"
+              description-key="InvokedRecordId_Desc"
+              of-type="SingleLine.Text"
+              usage="output" />
+
+    <property name="invokedCommand"
+              display-name-key="InvokedCommand_Name"
+              description-key="InvokedCommand_Desc"
+              of-type="SingleLine.Text"
+              usage="output" />
+
+    <property name="invokeCount"
+              display-name-key="InvokeCount_Name"
+              description-key="InvokeCount_Desc"
+              of-type="Whole.None"
+              usage="output" />
+
+    <resources>
+      <code path="index.ts" order="1" />
+      <css path="css/RowCommands.css" order="1" />
+      <!--
+        THE ORDER IS DELIBERATE AND 1033 GOES LAST. `pcf-start` picks the .resx
+        by manifest order rather than by locale — it reads whichever file is
+        listed last and ignores the LCID entirely. The platform itself resolves
+        from the user's provisioned language and ignores this order completely,
+        so `npm start` is the only thing in the world that reads it.
+
+        ADD A NEW LANGUAGE ABOVE THIS LINE.
+      -->
+      <resx path="strings/RowCommands.3082.resx" version="1.0.0" />
+      <resx path="strings/RowCommands.1036.resx" version="1.0.0" />
+      <resx path="strings/RowCommands.1031.resx" version="1.0.0" />
+      <resx path="strings/RowCommands.1041.resx" version="1.0.0" />
+      <resx path="strings/RowCommands.1033.resx" version="1.0.0" />
+    </resources>
+
+    <!--
+      One feature, and `required="false"` is the load-bearing half.
+
+      WebAPI is Dataverse-dependent and absent in canvas apps. `required="true"`
+      on a host that lacks a feature is **component load failure at runtime** —
+      the whole control fails to appear, not the one button — so a control that
+      can do something useful without it must declare `false` and feature-detect.
+      Here that is exactly the shape: without `context.webAPI` the delete
+      command is not rendered, and open and launch carry on.
+
+      Nothing else is declared. `openDatasetItem()` is a method on the dataset
+      and needs no feature; neither does `context.navigation` — pcf-lookup-search
+      calls `openForm` with no declaration at all. `Utility` is not used: this
+      control never resolves entity metadata, because `dataset.getTargetEntityType()`
+      already answers the only question it would ask.
+
+      Every entry here is an install-time permission prompt for the customer, so
+      the commented-out block the template ships is deleted rather than left in
+      place — a commented feature declares nothing, but it invites somebody to
+      uncomment the pair rather than the one.
+    -->
+    <feature-usage>
+      <uses-feature name="WebAPI" required="false" />
+    </feature-usage>
+  </control>
+</manifest>

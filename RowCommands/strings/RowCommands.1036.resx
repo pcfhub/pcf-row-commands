@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Display names and descriptions for everything declared in
+    ControlManifest.Input.xml. PCFHub reads the manifest, so these strings are
+    what appear in the component's API reference on the hub as well as in the
+    maker's properties pane.
+
+    Copy this file to add a language — RowCommands.3082.resx for Spanish, and so
+    on — then list it under <resources> in the manifest.
+  -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="RowCommands_Name" xml:space="preserve">
+    <value>Row Commands</value>
+  </data>
+  <data name="RowCommands_Desc" xml:space="preserve">
+    <value>Open a record, launch a URL, or delete it with a confirm, from the row itself.</value>
+  </data>
+  <data name="Records_DataSet_Name" xml:space="preserve">
+    <value>Enregistrements</value>
+  </data>
+  <data name="UrlField_Name" xml:space="preserve">
+    <value>Colonne URL</value>
+  </data>
+  <data name="UrlField_Desc" xml:space="preserve">
+    <value>Une colonne contenant une adresse http ou https. Si vous en mappez une, chaque ligne reçoit un bouton Ouvrir le lien ; sinon, aucune commande de lien n’apparaît.</value>
+  </data>
+  <data name="HideOpen_Name" xml:space="preserve">
+    <value>Masquer la commande Ouvrir</value>
+  </data>
+  <data name="HideOpen_Desc" xml:space="preserve">
+    <value>Retire le bouton Ouvrir de chaque ligne. Désactivé par défaut, afin que les enregistrements puissent être ouverts.</value>
+  </data>
+  <data name="ShowDelete_Name" xml:space="preserve">
+    <value>Afficher la commande Supprimer</value>
+  </data>
+  <data name="ShowDelete_Desc" xml:space="preserve">
+    <value>Ajoute un bouton Supprimer, qui demande toujours confirmation. Désactivé par défaut et indisponible sur les hôtes sans Dataverse.</value>
+  </data>
+  <data name="PageSize_Name" xml:space="preserve">
+    <value>Taille de page</value>
+  </data>
+  <data name="PageSize_Desc" xml:space="preserve">
+    <value>Nombre de lignes demandées par page. La plateforme peut limiter les grandes valeurs.</value>
+  </data>
+  <data name="InvokedRecordId_Name" xml:space="preserve">
+    <value>ID de l’enregistrement appelé</value>
+  </data>
+  <data name="InvokedRecordId_Desc" xml:space="preserve">
+    <value>ID de la ligne dont la commande a été activée en dernier.</value>
+  </data>
+  <data name="InvokedCommand_Name" xml:space="preserve">
+    <value>Commande appelée</value>
+  </data>
+  <data name="InvokedCommand_Desc" xml:space="preserve">
+    <value>Quelle commande a été activée : open, url ou delete.</value>
+  </data>
+  <data name="InvokeCount_Name" xml:space="preserve">
+    <value>Nombre d’appels</value>
+  </data>
+  <data name="InvokeCount_Desc" xml:space="preserve">
+    <value>Nombre de commandes activées. La valeur augmente à chaque activation : activer deux fois la même commande produit deux événements, pas un.</value>
+  </data>
+  <data name="RowCommands_Loading" xml:space="preserve">
+    <value>Chargement des enregistrements…</value>
+  </data>
+  <data name="RowCommands_Empty" xml:space="preserve">
+    <value>Aucun enregistrement.</value>
+  </data>
+  <data name="RowCommands_NoColumns" xml:space="preserve">
+    <value>Aucune colonne n’est sélectionnée pour ce tableau.</value>
+  </data>
+  <data name="RowCommands_Error" xml:space="preserve">
+    <value>Cette vue n’a pas pu être chargée.</value>
+  </data>
+  <data name="RowCommands_Previous" xml:space="preserve">
+    <value>Page précédente</value>
+  </data>
+  <data name="RowCommands_Next" xml:space="preserve">
+    <value>Page suivante</value>
+  </data>
+  <data name="RowCommands_PageStatus" xml:space="preserve">
+    <value>Page {0}</value>
+  </data>
+  <data name="RowCommands_RangeStatus" xml:space="preserve">
+    <value>{0}–{1} sur {2}</value>
+  </data>
+  <data name="RowCommands_SortBy" xml:space="preserve">
+    <value>Trier par {0}</value>
+  </data>
+  <data name="RowCommands_Commands" xml:space="preserve">
+    <value>Commandes</value>
+  </data>
+  <data name="RowCommands_CommandsFor" xml:space="preserve">
+    <value>Commandes pour {0}</value>
+  </data>
+  <data name="RowCommands_Untitled" xml:space="preserve">
+    <value>cet enregistrement</value>
+  </data>
+  <data name="RowCommands_Open" xml:space="preserve">
+    <value>Ouvrir</value>
+  </data>
+  <data name="RowCommands_OpenRecord" xml:space="preserve">
+    <value>Ouvrir {0}</value>
+  </data>
+  <data name="RowCommands_OpenFailed" xml:space="preserve">
+    <value>Cet enregistrement n’a pas pu être ouvert.</value>
+  </data>
+  <data name="RowCommands_Launch" xml:space="preserve">
+    <value>Ouvrir le lien</value>
+  </data>
+  <data name="RowCommands_LaunchUrl" xml:space="preserve">
+    <value>Ouvrir le lien de {0}</value>
+  </data>
+  <data name="RowCommands_Delete" xml:space="preserve">
+    <value>Supprimer</value>
+  </data>
+  <data name="RowCommands_DeleteRecord" xml:space="preserve">
+    <value>Supprimer {0}</value>
+  </data>
+  <data name="RowCommands_DeleteTitle" xml:space="preserve">
+    <value>Supprimer cet enregistrement ?</value>
+  </data>
+  <data name="RowCommands_DeleteText" xml:space="preserve">
+    <value>{0} sera supprimé définitivement. Cette action est irréversible.</value>
+  </data>
+  <data name="RowCommands_DeleteConfirm" xml:space="preserve">
+    <value>Supprimer</value>
+  </data>
+  <data name="RowCommands_DeleteCancel" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="RowCommands_Deleted" xml:space="preserve">
+    <value>{0} a été supprimé.</value>
+  </data>
+  <data name="RowCommands_DeleteCancelled" xml:space="preserve">
+    <value>Rien n’a été supprimé.</value>
+  </data>
+  <data name="RowCommands_DeleteFailed" xml:space="preserve">
+    <value>{0} n’a pas pu être supprimé.</value>
+  </data>
+</root>

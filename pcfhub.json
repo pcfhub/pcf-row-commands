@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "slug": "pcf-row-commands",
+  "name": "Row Commands",
+  "tagline": "Open a record, launch a URL, or delete it with a confirm, from the row itself.",
+  "category": "data",
+  "tags": [
+    "dataset",
+    "commands",
+    "navigation",
+    "delete",
+    "confirmation",
+    "no-react"
+  ],
+  "control": {
+    "namespace": "PCFHub",
+    "constructor": "RowCommands",
+    "type": "dataset",
+    "framework": "standard",
+    "manifestPath": "RowCommands/ControlManifest.Input.xml"
+  },
+  "links": {
+    "homepage": "https://github.com/pcfhub/pcf-row-commands",
+    "support": "https://github.com/pcfhub/pcf-row-commands/issues",
+    "license": "MIT"
+  },
+  "docs": {
+    "path": "docs"
+  },
+  "media": {
+    "logo": "media/logo.png",
+    "screenshots": [
+      "media/screenshot.png",
+      "media/screenshot-delete.png",
+      "media/screenshot-dark.png"
+    ]
+  },
+  "demo": {
+    "fidelity": "limited",
+    "bundle": "out/controls/RowCommands/bundle.js",
+    "styles": [
+      "out/controls/RowCommands/css/RowCommands.css"
+    ],
+    "datasetFixture": "demo/records.json",
+    "limitations": [
+      "Opening a record reaches a Dataverse this page does not have. Open calls context.navigation.openForm, falling back to the dataset's own openDatasetItem where that is missing, and the harness answers neither — so there is no form to arrive at. The invokedRecordId, invokedCommand and invokeCount outputs still update, which is the value a canvas app would react to, and it is the same thing the control reports on a real form.",
+      "Delete is not offered here at all, and that is the control's real behaviour rather than a hole in the demo. It needs context.webAPI to remove the record and context.navigation.openConfirmDialog to ask first, the sandbox has neither, and a delete that cannot be confirmed is one this control declines to draw. A canvas app shows exactly this. The Show the delete command preset below is here to demonstrate that, not to work around it.",
+      "The website addresses in the fixture are example.com placeholders, so following one leads nowhere. What is real is which rows offer the link and which do not: the address is read from a bound column, checked against http and https, and a row whose column is empty gets no button. One record in the fixture has no address for that reason.",
+      "Everything is on one page. The harness seeds a single page and reports no next or previous page, so the pager is drawn and inert — paging, sorting and the page-size property need a real view behind them. That is why this demo is limited rather than full, and it is the same ceiling every dataset control on the hub is under."
+    ],
+    "presets": [
+      {
+        "slug": "commands",
+        "name": "Open and open link",
+        "description": "The shipped defaults: every row can be opened, and a row with a website address can have it launched. This is what a maker gets by dropping the control on a view and mapping one column.",
+        "props": {
+          "hideOpen": false,
+          "showDelete": false,
+          "pageSize": 8
+        },
+        "isDefault": true
+      },
+      {
+        "slug": "links-only",
+        "name": "Links only",
+        "description": "Open switched off, for a view where the record is not the point — vendors somebody only ever visits the website of. It is named Hide rather than Show because a Yes/No property has no way to default to Yes.",
+        "props": {
+          "hideOpen": true,
+          "showDelete": false,
+          "pageSize": 8
+        }
+      },
+      {
+        "slug": "delete-requested",
+        "name": "Delete asked for, and withheld",
+        "description": "Delete switched on, which visibly changes nothing — and that is the demonstration. It needs a Dataverse to delete through and a dialog to confirm with; this page has neither, so the control leaves it out.",
+        "props": {
+          "hideOpen": false,
+          "showDelete": true,
+          "pageSize": 8
+        }
+      },
+      {
+        "slug": "compact",
+        "name": "A shorter page",
+        "description": "Four rows per page. The page size is a request rather than an instruction — the platform may clamp it, and the ceiling is 250 — so on a real view this is what the control asks for rather than what it necessarily gets.",
+        "props": {
+          "hideOpen": false,
+          "showDelete": false,
+          "pageSize": 4
+        }
+      }
+    ]
+  }
+}

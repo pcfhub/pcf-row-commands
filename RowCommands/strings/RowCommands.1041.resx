@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Display names and descriptions for everything declared in
+    ControlManifest.Input.xml. PCFHub reads the manifest, so these strings are
+    what appear in the component's API reference on the hub as well as in the
+    maker's properties pane.
+
+    Copy this file to add a language — RowCommands.3082.resx for Spanish, and so
+    on — then list it under <resources> in the manifest.
+  -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="RowCommands_Name" xml:space="preserve">
+    <value>Row Commands</value>
+  </data>
+  <data name="RowCommands_Desc" xml:space="preserve">
+    <value>Open a record, launch a URL, or delete it with a confirm, from the row itself.</value>
+  </data>
+  <data name="Records_DataSet_Name" xml:space="preserve">
+    <value>レコード</value>
+  </data>
+  <data name="UrlField_Name" xml:space="preserve">
+    <value>URL 列</value>
+  </data>
+  <data name="UrlField_Desc" xml:space="preserve">
+    <value>http または https のアドレスを保持する列。割り当てると各行に「リンクを開く」ボタンが表示され、割り当てなければリンクのコマンドは表示されません。</value>
+  </data>
+  <data name="HideOpen_Name" xml:space="preserve">
+    <value>「開く」コマンドを非表示にする</value>
+  </data>
+  <data name="HideOpen_Desc" xml:space="preserve">
+    <value>すべての行から「開く」ボタンを削除します。既定はオフで、レコードを開けます。</value>
+  </data>
+  <data name="ShowDelete_Name" xml:space="preserve">
+    <value>「削除」コマンドを表示する</value>
+  </data>
+  <data name="ShowDelete_Desc" xml:space="preserve">
+    <value>常に確認を求める「削除」ボタンを追加します。既定はオフで、Dataverse のないホストでは利用できません。</value>
+  </data>
+  <data name="PageSize_Name" xml:space="preserve">
+    <value>ページ サイズ</value>
+  </data>
+  <data name="PageSize_Desc" xml:space="preserve">
+    <value>1 ページあたりに要求する行数。プラットフォームが大きな値を制限する場合があります。</value>
+  </data>
+  <data name="InvokedRecordId_Name" xml:space="preserve">
+    <value>実行対象レコード ID</value>
+  </data>
+  <data name="InvokedRecordId_Desc" xml:space="preserve">
+    <value>最後にコマンドが実行された行の ID。</value>
+  </data>
+  <data name="InvokedCommand_Name" xml:space="preserve">
+    <value>実行されたコマンド</value>
+  </data>
+  <data name="InvokedCommand_Desc" xml:space="preserve">
+    <value>実行されたコマンド: open、url、delete のいずれか。</value>
+  </data>
+  <data name="InvokeCount_Name" xml:space="preserve">
+    <value>実行回数</value>
+  </data>
+  <data name="InvokeCount_Desc" xml:space="preserve">
+    <value>実行されたコマンドの回数。実行のたびに増えるため、同じコマンドを 2 回押すと 1 件ではなく 2 件のイベントになります。</value>
+  </data>
+  <data name="RowCommands_Loading" xml:space="preserve">
+    <value>レコードを読み込んでいます…</value>
+  </data>
+  <data name="RowCommands_Empty" xml:space="preserve">
+    <value>レコードがありません。</value>
+  </data>
+  <data name="RowCommands_NoColumns" xml:space="preserve">
+    <value>このテーブルの列が選択されていません。</value>
+  </data>
+  <data name="RowCommands_Error" xml:space="preserve">
+    <value>このビューを読み込めませんでした。</value>
+  </data>
+  <data name="RowCommands_Previous" xml:space="preserve">
+    <value>前のページ</value>
+  </data>
+  <data name="RowCommands_Next" xml:space="preserve">
+    <value>次のページ</value>
+  </data>
+  <data name="RowCommands_PageStatus" xml:space="preserve">
+    <value>ページ {0}</value>
+  </data>
+  <data name="RowCommands_RangeStatus" xml:space="preserve">
+    <value>{2} 件中 {0}–{1}</value>
+  </data>
+  <data name="RowCommands_SortBy" xml:space="preserve">
+    <value>{0} で並べ替え</value>
+  </data>
+  <data name="RowCommands_Commands" xml:space="preserve">
+    <value>コマンド</value>
+  </data>
+  <data name="RowCommands_CommandsFor" xml:space="preserve">
+    <value>{0} のコマンド</value>
+  </data>
+  <data name="RowCommands_Untitled" xml:space="preserve">
+    <value>このレコード</value>
+  </data>
+  <data name="RowCommands_Open" xml:space="preserve">
+    <value>開く</value>
+  </data>
+  <data name="RowCommands_OpenRecord" xml:space="preserve">
+    <value>{0} を開く</value>
+  </data>
+  <data name="RowCommands_OpenFailed" xml:space="preserve">
+    <value>このレコードを開けませんでした。</value>
+  </data>
+  <data name="RowCommands_Launch" xml:space="preserve">
+    <value>リンクを開く</value>
+  </data>
+  <data name="RowCommands_LaunchUrl" xml:space="preserve">
+    <value>{0} のリンクを開く</value>
+  </data>
+  <data name="RowCommands_Delete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="RowCommands_DeleteRecord" xml:space="preserve">
+    <value>{0} を削除</value>
+  </data>
+  <data name="RowCommands_DeleteTitle" xml:space="preserve">
+    <value>このレコードを削除しますか?</value>
+  </data>
+  <data name="RowCommands_DeleteText" xml:space="preserve">
+    <value>{0} は完全に削除されます。この操作は元に戻せません。</value>
+  </data>
+  <data name="RowCommands_DeleteConfirm" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="RowCommands_DeleteCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="RowCommands_Deleted" xml:space="preserve">
+    <value>{0} を削除しました。</value>
+  </data>
+  <data name="RowCommands_DeleteCancelled" xml:space="preserve">
+    <value>何も削除されませんでした。</value>
+  </data>
+  <data name="RowCommands_DeleteFailed" xml:space="preserve">
+    <value>{0} を削除できませんでした。</value>
+  </data>
+</root>

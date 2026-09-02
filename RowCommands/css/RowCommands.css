@@ -1,0 +1,490 @@
+/*
+  Every rule is scoped under .RowCommands.
+
+  A code component's CSS is loaded into the whole page, not into a shadow root,
+  so an unscoped `table { }` here restyles the host form.
+*/
+
+/*
+  The palette, as Fluent's design tokens with literal fallbacks.
+
+  `FluentProvider` is what emits the tokens as CSS custom properties on its own
+  wrapper, and there are two ways this control ends up inside one. The React
+  variant mounts its own, with the host's `tokenTheme`. The DOM variant cannot —
+  the provider is React — but a model-driven form already mounts one above every
+  code component on the page, so the tokens are there to be read either way.
+  Nothing has to be mounted in order to read them.
+
+  So the token wins wherever the host publishes it, and the control follows the
+  app's theme and brand colour with no code at all. The fallbacks are what it
+  looks like where nothing does — a canvas app, or PCFHub's demo harness.
+
+  They are Fluent's web light theme, read from `@fluentui/tokens` rather than
+  eyeballed. Two of them were wrong before this: `colorPaletteRedForeground1` is
+  `#bc2f32` and not `#b10e1c`, and `colorBrandForegroundLink` is `#115ea3` and
+  not the `#0f6cbd` of `colorCompoundBrandForeground1`. Neither was visible
+  until a host stopped publishing tokens, which is exactly when a fallback is
+  the only thing anybody sees.
+
+  Declared once here rather than written at each use site, because the dark set
+  below has to redefine them and a palette scattered through the file is a
+  palette that cannot be.
+*/
+.RowCommands {
+    --RowCommands-foreground: var(--colorNeutralForeground1, #242424);
+    --RowCommands-foreground-secondary: var(--colorNeutralForeground3, #616161);
+    --RowCommands-foreground-disabled: var(--colorNeutralForegroundDisabled, #bdbdbd);
+    --RowCommands-foreground-danger: var(--colorPaletteRedForeground1, #bc2f32);
+    --RowCommands-link: var(--colorBrandForegroundLink, #115ea3);
+    --RowCommands-link-hover: var(--colorBrandForegroundLinkHover, #0f548c);
+    --RowCommands-background: var(--colorNeutralBackground1, #ffffff);
+    --RowCommands-background-hover: var(--colorNeutralBackground1Hover, #f5f5f5);
+    --RowCommands-background-pressed: var(--colorNeutralBackground1Pressed, #e0e0e0);
+    --RowCommands-row-hover: var(--colorSubtleBackgroundHover, #f5f5f5);
+    --RowCommands-stroke: var(--colorNeutralStroke1, #d1d1d1);
+    --RowCommands-stroke-hover: var(--colorNeutralStroke1Hover, #c7c7c7);
+    --RowCommands-stroke-subtle: var(--colorNeutralStroke2, #e0e0e0);
+    --RowCommands-stroke-disabled: var(--colorNeutralStrokeDisabled, #e0e0e0);
+    --RowCommands-focus-inner: var(--colorStrokeFocus1, #ffffff);
+    --RowCommands-focus-outer: var(--colorStrokeFocus2, #000000);
+    --RowCommands-radius: var(--borderRadiusMedium, 4px);
+    --RowCommands-duration: var(--durationFaster, 100ms);
+    --RowCommands-curve: var(--curveEasyEase, cubic-bezier(0.33, 0, 0.67, 1));
+
+    font-family: var(--fontFamilyBase, "Segoe UI", system-ui, sans-serif);
+    font-size: var(--fontSizeBase300, 14px);
+    color: var(--RowCommands-foreground);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacingVerticalS, 8px);
+    width: 100%;
+}
+
+/*
+  The dark fallbacks, applied from `fluentDesignLanguage.isDarkTheme` in
+  `index.ts` rather than from `prefers-color-scheme`. A model-driven app carries
+  its own theme and the operating system's setting says nothing about it, so the
+  media query would hand an OS-dark machine on a light app a dark table.
+
+  This block only ever bites in the DOM variant on a host that publishes no
+  tokens. The React variant is inside its own `FluentProvider`, so every `var()`
+  above already resolves and none of these fallbacks is reached — which is why
+  the React entry point does not set the class and does not need to.
+*/
+.RowCommands--dark {
+    --RowCommands-foreground: var(--colorNeutralForeground1, #ffffff);
+    --RowCommands-foreground-secondary: var(--colorNeutralForeground3, #adadad);
+    --RowCommands-foreground-disabled: var(--colorNeutralForegroundDisabled, #5c5c5c);
+    --RowCommands-foreground-danger: var(--colorPaletteRedForeground1, #e37d80);
+    --RowCommands-link: var(--colorBrandForegroundLink, #479ef5);
+    --RowCommands-link-hover: var(--colorBrandForegroundLinkHover, #62abf5);
+    --RowCommands-background: var(--colorNeutralBackground1, #292929);
+    --RowCommands-background-hover: var(--colorNeutralBackground1Hover, #3d3d3d);
+    --RowCommands-background-pressed: var(--colorNeutralBackground1Pressed, #1f1f1f);
+    --RowCommands-row-hover: var(--colorSubtleBackgroundHover, #383838);
+    --RowCommands-stroke: var(--colorNeutralStroke1, #666666);
+    --RowCommands-stroke-hover: var(--colorNeutralStroke1Hover, #757575);
+    --RowCommands-stroke-subtle: var(--colorNeutralStroke2, #525252);
+    --RowCommands-stroke-disabled: var(--colorNeutralStrokeDisabled, #424242);
+    --RowCommands-focus-inner: var(--colorStrokeFocus1, #000000);
+    --RowCommands-focus-outer: var(--colorStrokeFocus2, #ffffff);
+}
+
+.RowCommands-message {
+    margin: 0;
+    padding: var(--spacingVerticalL, 16px);
+    color: var(--RowCommands-foreground-secondary);
+}
+
+.RowCommands-error {
+    color: var(--RowCommands-foreground-danger);
+}
+
+/* Wide views scroll inside the control rather than widening the form. */
+.RowCommands-scroll {
+    overflow-x: auto;
+    width: 100%;
+}
+
+/*
+  Dim rather than blank while a page loads. Replacing the rows with a spinner
+  makes every sort and page turn flash empty.
+
+  This is the one place `opacity` is the right tool — it is transient and it is
+  saying "stale", not "unavailable". A *disabled* control dimmed this way would
+  be dragging its text below contrast permanently, which is why the pager's
+  disabled state below recolours instead.
+*/
+.RowCommands-scroll.is-loading {
+    opacity: 0.6;
+}
+
+.RowCommands-table {
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;
+}
+
+/* The title names the table for a screen reader without taking up space. */
+.RowCommands-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.RowCommands-table th,
+.RowCommands-table td {
+    text-align: start;
+    padding: var(--spacingVerticalS, 8px) var(--spacingHorizontalM, 12px);
+    border-bottom: 1px solid var(--RowCommands-stroke-subtle);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Fluent's DataGrid gives rows 44px and the header the same, which is what
+   makes a grid read as a grid rather than as a table with padding. */
+.RowCommands-table th,
+.RowCommands-table td {
+    height: 44px;
+    box-sizing: border-box;
+}
+
+.RowCommands-table th {
+    font-weight: var(--fontWeightSemibold, 600);
+    border-bottom: 1px solid var(--RowCommands-stroke);
+}
+
+.RowCommands-table tbody tr {
+    transition: background-color var(--RowCommands-duration) var(--RowCommands-curve);
+}
+
+.RowCommands-table tbody tr:hover {
+    background-color: var(--RowCommands-row-hover);
+}
+
+/*
+  The sort control and the open-record control are real buttons, so they are
+  keyboard-reachable. These rules strip the browser chrome without removing the
+  semantics.
+*/
+.RowCommands-sort {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color var(--RowCommands-duration) var(--RowCommands-curve);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacingHorizontalXS, 4px);
+    font-weight: inherit;
+}
+
+/*
+  The command cell.
+
+  `flex-wrap` rather than a fixed width: three buttons is the maximum and one is
+  the minimum, and the column is at the end of a table that already scrolls
+  horizontally. Wrapping keeps the last command reachable at a narrow width
+  instead of pushing it under the scroll.
+*/
+.RowCommands-commands {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacingHorizontalXS, 4px);
+}
+
+/*
+  An explicit width, because the table is `table-layout: fixed`.
+
+  The shrink-to-fit trick (`width: 1%`) is the obvious move and it is wrong
+  here: under fixed layout a declared width is taken literally, so the column
+  becomes 1% of the table and the buttons disappear under `overflow: hidden`.
+  Under fixed layout the choice is a real width or none at all, and none means
+  an equal share — which stacks the buttons one per line and turns a six-row
+  view into twelve rows of chrome.
+
+  22em fits all three commands on one line at the default font size. The
+  commands are right-aligned rather than left, so the two-command case — the
+  shipped default, and every canvas host — reads as a column that ends at the
+  table's edge rather than as one with a hole in it.
+*/
+.RowCommands-commandsHeader,
+.RowCommands-table td:last-child {
+    width: 22em;
+}
+
+.RowCommands-commandsHeader {
+    text-align: end;
+}
+
+.RowCommands-commands {
+    justify-content: flex-end;
+}
+
+/*
+  A subtle button: no fill until it is wanted, because three filled buttons per
+  row across twenty-five rows is a wall of colour with no hierarchy in it.
+*/
+.RowCommands-command {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacingHorizontalXS, 4px);
+    font: inherit;
+    color: var(--RowCommands-foreground);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--RowCommands-radius);
+    padding: var(--spacingVerticalXXS, 2px) var(--spacingHorizontalS, 8px);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        background-color var(--RowCommands-duration) var(--RowCommands-curve),
+        color var(--RowCommands-duration) var(--RowCommands-curve),
+        border-color var(--RowCommands-duration) var(--RowCommands-curve);
+}
+
+.RowCommands-command:hover {
+    background: var(--RowCommands-background-hover);
+    border-color: var(--RowCommands-stroke-hover);
+}
+
+.RowCommands-command:active {
+    background: var(--RowCommands-background-pressed);
+}
+
+/*
+  Disabled is a different surface, not a dimmer one: no hover, no pointer, and a
+  cursor that says so. `:disabled` beats the hover rules by coming after them.
+*/
+.RowCommands-command:disabled,
+.RowCommands-command:disabled:hover {
+    color: var(--RowCommands-foreground-disabled);
+    background: none;
+    border-color: transparent;
+    cursor: default;
+}
+
+/*
+  Delete is the one command that cannot be undone, and the only thing marking it
+  out is the colour of the glyph and the label — so it is stated on hover as
+  well, where a pointer has already committed to the row.
+
+  It is deliberately *not* a filled red button. A destructive default styled
+  loudest is the one a person hits by reflex, and there is a confirmation dialog
+  behind this one precisely because the button alone is not the safeguard.
+*/
+.RowCommands-command--delete {
+    color: var(--RowCommands-foreground-danger);
+}
+
+.RowCommands-command--delete:hover {
+    color: var(--RowCommands-foreground-danger);
+    border-color: var(--RowCommands-foreground-danger);
+}
+
+.RowCommands-icon {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+}
+
+/*
+  The live region.
+
+  Empty until something is announced, and it must not reserve space when it is —
+  a table that shifts down by a line every time a delete is confirmed is worse
+  than one that says nothing. `:empty` is the whole mechanism.
+*/
+.RowCommands-status {
+    margin: 0;
+    color: var(--RowCommands-foreground-secondary);
+}
+
+.RowCommands-status:empty {
+    display: none;
+}
+
+.RowCommands-surface {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacingVerticalS, 8px);
+}
+
+/*
+  Fluent's focus indicator: a dark ring with a light one immediately inside it,
+  so the shape survives against a light row and a dark one. A single outline
+  disappears into whichever background happens to match it — which on a table
+  means it disappears on hover, since that is a different colour again.
+
+  `:focus-visible` rather than `:focus`, so clicking a sort header does not
+  leave a ring behind on a control the user is no longer navigating by keyboard.
+*/
+.RowCommands-sort:focus-visible,
+.RowCommands-command:focus-visible,
+.RowCommands-pager button:focus-visible {
+    outline: 2px solid var(--RowCommands-focus-outer);
+    outline-offset: 1px;
+    box-shadow: 0 0 0 4px var(--RowCommands-focus-inner);
+    border-radius: var(--RowCommands-radius);
+}
+
+.RowCommands-pager {
+    display: flex;
+    align-items: center;
+    gap: var(--spacingHorizontalM, 12px);
+}
+
+/*
+  Fluent's secondary Button: 32px tall, semibold, a neutral fill that darkens on
+  hover and again on press. The height matters more than it looks — a pager
+  button that is 26px tall next to a form full of 32px controls is the same
+  mismatch as a field that is the wrong height, just further down the page.
+*/
+/*
+  The pager chevrons.
+
+  Inline `<svg>`, inheriting the button’s `color`. An icon behind `<img src>`
+  — a resource, a data URL, PNG or SVG alike — renders in an isolated document
+  that cannot read this stylesheet, so it resolves `currentColor` to black and a
+  dark form gets a black glyph on a dark background. A control in this house
+  shipped exactly that.
+
+  `flex: none` so a chevron never squashes on a narrow form — the label is what
+  should give way instead.
+*/
+.RowCommands-chevron {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+}
+
+/*
+  Mirrored in right-to-left. A chevron is directional, and reordering the flex
+  children does not turn the glyph around: `<` stays `<` and ends up pointing at
+  the label rather than away from it.
+
+  Keyed off *any* right-to-left ancestor rather than this control’s own `dir`.
+  A DOM control sets `dir` on its container, a React one on the `FluentProvider`
+  above it, and a host form in an right-to-left language sets it higher again —
+  an ancestor selector is the one that is right in all three cases.
+*/
+[dir="rtl"] .RowCommands-chevron {
+    transform: scaleX(-1);
+}
+
+.RowCommands-pager button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacingHorizontalXS, 4px);
+    box-sizing: border-box;
+    min-height: 32px;
+    padding: var(--spacingVerticalXS, 4px) var(--spacingHorizontalM, 12px);
+    font: inherit;
+    font-weight: var(--fontWeightSemibold, 600);
+    color: var(--RowCommands-foreground);
+    background-color: var(--RowCommands-background);
+    border: 1px solid var(--RowCommands-stroke);
+    border-radius: var(--RowCommands-radius);
+    cursor: pointer;
+    outline-style: none;
+    transition:
+        background-color var(--RowCommands-duration) var(--RowCommands-curve),
+        border-color var(--RowCommands-duration) var(--RowCommands-curve),
+        color var(--RowCommands-duration) var(--RowCommands-curve);
+}
+
+.RowCommands-pager button:hover {
+    background-color: var(--RowCommands-background-hover);
+    border-color: var(--RowCommands-stroke-hover);
+}
+
+.RowCommands-pager button:active {
+    background-color: var(--RowCommands-background-pressed);
+}
+
+/*
+  Recoloured rather than dimmed. A pager sits at the end of a page and is
+  disabled for as long as the user is on the first or last one, which is not a
+  transient state — `opacity` there would take the label below contrast and
+  leave it there.
+*/
+.RowCommands-pager button:disabled,
+.RowCommands-pager button:disabled:hover {
+    color: var(--RowCommands-foreground-disabled);
+    background-color: var(--RowCommands-background);
+    border-color: var(--RowCommands-stroke-disabled);
+    cursor: default;
+}
+
+.RowCommands-pagerStatus {
+    color: var(--RowCommands-foreground-secondary);
+}
+
+/*
+  Forced colours collapse every tint to one of a handful of system keywords, so
+  anything carrying meaning by colour has to carry it by shape as well. The row
+  hover and the link colour both vanish there; the borders and the focus ring
+  are what is left to carry structure, so they are restated against system
+  keywords rather than left to be overridden into invisibility.
+*/
+@media (forced-colors: active) {
+    .RowCommands-table th,
+    .RowCommands-table td {
+        border-bottom-color: ButtonBorder;
+    }
+
+    .RowCommands-pager button {
+        border-color: ButtonBorder;
+    }
+
+    .RowCommands-pager button:disabled {
+        color: GrayText;
+        border-color: GrayText;
+    }
+
+    /* Delete is told apart from its two neighbours by colour alone, and forced
+       colours is exactly where that stops working: every foreground collapses
+       to one keyword and the red is simply gone. A border is the difference
+       that survives, so all three commands take one here — a button that reads
+       as a button is worth more than a distinction that cannot be drawn. */
+    .RowCommands-command {
+        border-color: ButtonBorder;
+    }
+
+    .RowCommands-command:disabled,
+    .RowCommands-command:disabled:hover {
+        color: GrayText;
+        border-color: GrayText;
+    }
+
+    .RowCommands-sort:focus-visible,
+    .RowCommands-command:focus-visible,
+    .RowCommands-pager button:focus-visible {
+        outline-color: Highlight;
+    }
+}
+
+/*
+  Shortened, not removed. These transitions are decoration — a row hover, a
+  button press — and none of them carries state on its own, so cutting them to
+  nothing loses nothing.
+*/
+@media screen and (prefers-reduced-motion: reduce) {
+    .RowCommands-table tbody tr,
+    .RowCommands-sort,
+    .RowCommands-command,
+    .RowCommands-pager button {
+        transition-duration: 0.01ms;
+    }
+}
