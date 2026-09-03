@@ -262,6 +262,33 @@ string containing `\n`, the file had `\r\n`, `indexOf` returned `-1`, and
 overlapping, and repeating everything between. Nothing checks a README for
 saying the same thing twice.
 
+## The height a main grid does not give you
+
+**`allocatedHeight` is always `-1` on a model-driven table main grid**, and on a
+related-records grid. That is documented rather than discovered — the framework
+docs say so outright, and say what to do instead: *"The code component must use
+a CSS style to fill 100% of the available space."* A measured height is the
+**subgrid** case, where the maker types a number into the control configuration.
+
+0.1.4 got that exactly backwards. It bounded the control to the allocated height
+and gated the entire scroll layout on having been given one — so on the host
+that most needed it, the measurement never arrived, the class never applied, and
+the rows ran off the bottom of the page precisely as they had before the fix.
+Worse, the symptom was indistinguishable from an old build still being installed,
+which is what it was mistaken for.
+
+The layout is unconditional now and `height: 100%` does the work. It is safe on
+every host: against a parent with a definite height it fills it, and against an
+auto-height parent — a form section sizing itself around its contents — a
+percentage height computes to `auto` and nothing changes. The inline pixel
+height still wins where a subgrid supplied one.
+
+**The general lesson is about which half of a pair the platform expects to
+supply.** `allocatedWidth` is measured and `allocatedHeight` is not, on the same
+host, for the same control, after the same `trackContainerResize(true)` — and
+nothing in the type definitions distinguishes them, because both are `number`.
+Promoted to the skill; see `references/control-patterns.md`.
+
 ## Not verified
 
 Nothing in this repository has been on a real Power App **except what is

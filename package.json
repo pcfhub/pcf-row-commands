@@ -1,6 +1,6 @@
 {
   "name": "pcf-row-commands",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Open a record, launch a URL, or delete it with a confirm, from the row itself.",
   "license": "MIT",
   "private": true,
