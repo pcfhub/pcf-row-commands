@@ -493,6 +493,23 @@ check(
     `${overridden.driven.passes} passes`,
 );
 
+/*
+ * A host that reports no page size at all. `0` means "did not say", and the
+ * first version of this treated it as one-row-per-page — so a view handing over
+ * twenty rows would have drawn one, which is the worst possible reading of a
+ * missing number.
+ */
+const unsized = bind({ pageSize: 12, inputs: { pageSize: null }, quirks: { uncounted: true } });
+
+unsized.handle.options.pageSize = 0;
+unsized.settle();
+
+check(
+    'a host that reports no page size gets everything it handed over, not one row',
+    rowsOf(unsized).length === 12,
+    `${rowsOf(unsized).length} rows`,
+);
+
 /* ==================================== the height the host allocated */
 
 /*

@@ -331,7 +331,16 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
          * asking for it.
          */
         if (raw === null || raw === undefined) {
-            this.appliedPageSize = dataset.paging.pageSize > 0 ? dataset.paging.pageSize : 1;
+            /*
+             * `0` means "the host did not say", not "one row per page".
+             *
+             * The first version of this fell back to `1`, which is a page size
+             * the platform never has and which `currentPage()` would have
+             * sliced the view down to — twenty rows arriving and one drawn. A
+             * host that reports no page size is a host whose paging this
+             * control cannot second-guess, so it draws what it was given.
+             */
+            this.appliedPageSize = dataset.paging.pageSize > 0 ? dataset.paging.pageSize : 0;
 
             return;
         }
@@ -428,7 +437,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * page it already is the page, and nothing is cut.
      */
     private currentPage(ids: string[]): string[] {
-        if (ids.length <= this.appliedPageSize) {
+        // No page size means no basis for slicing: draw everything the platform
+        // handed over, which is what it expects a control to do anyway.
+        if (this.appliedPageSize <= 0 || ids.length <= this.appliedPageSize) {
             return ids;
         }
 
