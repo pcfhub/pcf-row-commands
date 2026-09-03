@@ -179,12 +179,26 @@ it.
 
 ## Release
 
-1. Bump the version in **three** places, in one commit — they are checked
-   against each other in CI:
+1. Bump the version in **three** places — the first three are checked against
+   each other in CI, and the fourth is not, which is why it is easy to miss:
    - `RowCommands/ControlManifest.Input.xml` → `<control version="…">`
    - `Solution/src/Other/Solution.xml` → `<Version>`
    - `package.json` → `"version"`
-2. Tag it: `git tag v1.2.3 && git push --tags`
+2. Then **regenerate the lock file in the same commit**:
+
+   ```bash
+   npm install --package-lock-only
+   ```
+
+   `package-lock.json` carries the version twice, and npm rewrites it the next
+   time anything runs — so bumping the other three and committing leaves a lock
+   file a release behind, and the *next* commit silently picks it up. Nothing
+   fails: `npm ci` does not mind, the pack does not read it, and the shipped
+   solution is identical. What you get instead is a tag whose tree disagrees
+   with itself, which is worth avoiding precisely because nothing will ever tell
+   you about it.
+
+3. Tag it: `git tag v1.2.3 && git push --tags`
 
 The release workflow builds, packs both solution types, and attaches them to a
 GitHub Release. PCFHub picks the release up from its webhook within seconds, or
