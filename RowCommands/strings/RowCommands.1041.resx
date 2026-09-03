@@ -99,7 +99,7 @@
     <value>ページ サイズ</value>
   </data>
   <data name="PageSize_Desc" xml:space="preserve">
-    <value>1 ページあたりに要求する行数。プラットフォームが大きな値を制限する場合があります。</value>
+    <value>1 ページあたりに要求する行数。空のままにするとアプリまたはユーザーが既に選択したページ サイズを使用し、値を設定すると上書きします。プラットフォームが大きな値を制限する場合があります。</value>
   </data>
   <data name="InvokedRecordId_Name" xml:space="preserve">
     <value>実行対象レコード ID</value>

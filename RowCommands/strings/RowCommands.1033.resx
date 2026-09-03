@@ -99,7 +99,7 @@
     <value>Page size</value>
   </data>
   <data name="PageSize_Desc" xml:space="preserve">
-    <value>How many rows to request per page. The platform may clamp large values.</value>
+    <value>How many rows to request per page. Leave it empty to use the page size the app or the user already chose; set it to override. The platform may clamp large values.</value>
   </data>
   <data name="InvokedRecordId_Name" xml:space="preserve">
     <value>Invoked record ID</value>

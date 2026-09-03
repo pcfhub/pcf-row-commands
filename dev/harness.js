@@ -65,6 +65,7 @@
             host: document.getElementById('harness-host').value,
             formFactor: document.getElementById('harness-formfactor').value,
             width: Number(document.getElementById('harness-width').value),
+            height: Number(document.getElementById('harness-height').value),
             pageSize: Number(document.getElementById('harness-pagesize').value) || 5,
             visible: document.getElementById('harness-visible').checked,
             disabled: document.getElementById('harness-disabled').checked,

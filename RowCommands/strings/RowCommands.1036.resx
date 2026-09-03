@@ -99,7 +99,7 @@
     <value>Taille de page</value>
   </data>
   <data name="PageSize_Desc" xml:space="preserve">
-    <value>Nombre de lignes demandées par page. La plateforme peut limiter les grandes valeurs.</value>
+    <value>Nombre de lignes demandées par page. Laissez vide pour utiliser la taille de page déjà choisie par l’application ou l’utilisateur ; renseignez-la pour la remplacer. La plateforme peut limiter les grandes valeurs.</value>
   </data>
   <data name="InvokedRecordId_Name" xml:space="preserve">
     <value>ID de l’enregistrement appelé</value>

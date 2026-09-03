@@ -450,6 +450,73 @@ check(
     'no navigation, no openUrl',
 );
 
+/* ================================= the size of a page, and whose it is */
+
+/*
+ * **The platform already has a page size.** `paging.pageSize` is what the host
+ * is actually retrieving with — a user's own *Rows per page* on a main grid,
+ * the maker's setting on a subgrid — and the first version of this control
+ * overrode it on every host, because the property carried
+ * `default-value="25"` and so arrived as a real number from a maker who had
+ * never touched it.
+ *
+ * The rig keeps the two separate: `pageSize` is the platform's, `inputs.pageSize`
+ * is the control's own property. They are one option on a real host only
+ * because nobody had needed to tell them apart before.
+ */
+const adopted = bind({ pageSize: 7, inputs: { pageSize: null } });
+
+check(
+    'an unset page size adopts the host’s own, and asks for nothing',
+    callsLike(adopted, 'setPageSize').length === 0,
+    adopted.calls().join(' | '),
+);
+
+check(
+    'and pages by it — reading a size is not the same as requesting one',
+    rowsOf(adopted).length === 7,
+    `${rowsOf(adopted).length} rows against paging.pageSize 7`,
+);
+
+const overridden = bind({ pageSize: 7, inputs: { pageSize: 4 } });
+
+check(
+    'a page size the maker did set overrides the host',
+    callsLike(overridden, 'setPageSize').length === 1 &&
+        callsLike(overridden, 'setPageSize')[0].indexOf('4') !== -1,
+    overridden.calls().join(' | '),
+);
+
+check(
+    'and settles rather than asking again on every render',
+    !overridden.driven.looping && overridden.driven.passes === 2,
+    `${overridden.driven.passes} passes`,
+);
+
+/* ==================================== the height the host allocated */
+
+/*
+ * A main grid hands over the whole grid area and expects the control to live
+ * inside it. Twenty-five rows is taller than that, so the rows ran off the
+ * bottom of the page and took the pager with them — and the pager is the only
+ * route to page two.
+ */
+const bounded = bind({ height: 420 });
+
+check(
+    'a host that allocates a height gets a control that fits inside it',
+    bounded.container.classList.contains('RowCommands--bounded') &&
+        bounded.container.style.height === '420px',
+    bounded.container.style.height,
+);
+
+check(
+    'and one that allocates none lets the control grow to its content',
+    view.container.classList.contains('RowCommands--bounded') === false &&
+        (view.container.style.height || '') === '',
+    `height -1 -> "${view.container.style.height || ''}"`,
+);
+
 /* ============================================ a record with no name */
 
 /*

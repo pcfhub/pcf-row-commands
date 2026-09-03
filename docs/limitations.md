@@ -59,4 +59,11 @@ Each of these is a constraint that was chosen, not a defect waiting on a fix.
   squeezed to forty pixels each are an ellipsis in every cell, which reads as a
   table that fits when nothing in it can be read.
 
+- **On a host that allocates a height — replacing a view's own grid — the rows
+  scroll inside it.** The column headers stay put and the pager stays at the
+  bottom, because the pager is the only route to page two and it is what runs
+  off the screen otherwise. Where the host allocates no height, such as a form
+  section that sizes itself around its contents, the control grows to fit its
+  rows instead.
+
 - **Not supported on Power Pages.**

@@ -99,7 +99,7 @@
     <value>Seitengröße</value>
   </data>
   <data name="PageSize_Desc" xml:space="preserve">
-    <value>Wie viele Zeilen pro Seite angefordert werden. Die Plattform kann große Werte begrenzen.</value>
+    <value>Wie viele Zeilen pro Seite angefordert werden. Leer lassen, um die bereits von der App oder dem Benutzer gewählte Seitengröße zu verwenden; setzen, um sie zu überschreiben. Die Plattform kann große Werte begrenzen.</value>
   </data>
   <data name="InvokedRecordId_Name" xml:space="preserve">
     <value>ID des aufgerufenen Datensatzes</value>

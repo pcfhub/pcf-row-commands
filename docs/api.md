@@ -11,6 +11,13 @@ order: 5
 ::props-table{kind=input}
 
 :::callout{type=info}
+**Page size is empty by default and should usually stay that way.** The platform
+already has one — the user's own *Rows per page* on a main grid, the maker's
+setting on a subgrid — and the control reads it rather than replacing it. Fill
+this in only to override that.
+:::
+
+:::callout{type=info}
 **Two Yes/No properties, named opposite ways round, for the same reason.** A
 Yes/No property has no way to default to Yes — a maker who never touches the
 checkbox gets No — so a property whose sensible default is *on* has to be named

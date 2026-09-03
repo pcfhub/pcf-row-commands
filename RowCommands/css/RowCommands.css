@@ -487,6 +487,61 @@
     color: var(--RowCommands-foreground-danger);
 }
 
+/* ---- bounded: the host gave the control a height to live inside -------- */
+
+/*
+  Set from `allocatedHeight` in index.ts. Without a height the control grows to
+  its content, which is right on a form section; with one — a main grid hands
+  over the whole grid area — the rows have to scroll inside it instead of
+  running past the bottom of the page and taking the pager with them.
+
+  `min-height: 0` on the scrolling child is the part that is easy to miss: a
+  flex item's default minimum is its content, so without it the table refuses to
+  shrink and the overflow never engages. The symptom is identical to having no
+  height at all, which is what makes it hard to spot.
+*/
+.RowCommands--bounded {
+    overflow: hidden;
+}
+
+.RowCommands--bounded .RowCommands-surface {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.RowCommands--bounded .RowCommands-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* The pager keeps its height whatever the rows do — it is the only route to
+   page two, and it is what fell off the bottom. */
+.RowCommands--bounded .RowCommands-pager {
+    flex: 0 0 auto;
+}
+
+/*
+  Once the rows scroll vertically the header has to stay, or a long page is a
+  table of unlabelled columns. The command column is already sticky on the
+  horizontal axis, so its header cell is sticky on both and needs to outrank
+  each of them — hence the third z-index.
+*/
+.RowCommands--bounded .RowCommands-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--RowCommands-background);
+}
+
+.RowCommands--bounded .RowCommands-table td:last-child {
+    z-index: 1;
+}
+
+.RowCommands--bounded .RowCommands-commandsHeader {
+    z-index: 2;
+}
+
 .RowCommands-surface {
     display: flex;
     flex-direction: column;

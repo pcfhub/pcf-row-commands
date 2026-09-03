@@ -193,6 +193,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
         this.applyTheme(context);
         this.applyWidth(context);
+        this.applyHeight(context);
         this.applyPageSize(context, dataset);
         this.render(context, dataset);
     }
@@ -223,6 +224,31 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         this.container.style.maxWidth = known ? `${allocated}px` : '';
         this.compact = known && allocated < COMPACT_BELOW;
         this.container.classList.toggle('RowCommands--compact', this.compact);
+    }
+
+    /**
+     * Fit inside the height the host allocated, rather than running off it.
+     *
+     * **A main grid is the case that shows why.** The host hands the control the
+     * full height of the grid area and expects it to live inside; a table of
+     * twenty-five rows is taller than that, so the rows ran past the bottom of
+     * the page and the pager — the only way to reach page two — went with them.
+     * Nothing was hidden by CSS. The control had simply never been told how tall
+     * it was allowed to be, and never asked.
+     *
+     * With a real height the rows scroll and the pager stays. Without one the
+     * control grows to its content exactly as before, which is right for a form
+     * section that sizes itself around what it holds.
+     *
+     * `-1` and `0` are both "no answer" — the same rule as the width, and the
+     * one `pcf-sparkline` wrote down for the height half.
+     */
+    private applyHeight(context: ComponentFramework.Context<IInputs>): void {
+        const allocated = context.mode.allocatedHeight;
+        const known = typeof allocated === 'number' && allocated > 0;
+
+        this.container.style.height = known ? `${allocated}px` : '';
+        this.container.classList.toggle('RowCommands--bounded', known);
     }
 
     /**
@@ -282,7 +308,34 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * refreshes.
      */
     private applyPageSize(context: ComponentFramework.Context<IInputs>, dataset: DataSet): void {
-        const raw = context.parameters.pageSize.raw ?? 25;
+        const raw = context.parameters.pageSize.raw;
+
+        /*
+         * **The platform already has a page size, and it is usually the right
+         * one.** `paging.pageSize` is the size the host is actually retrieving
+         * with — on a main grid that is the user's own *Rows per page*
+         * personalisation, on a subgrid it is what the maker set in the form
+         * designer, and in canvas it is the platform default.
+         *
+         * The first version of this control ignored all of that: the property
+         * carried `default-value="25"`, so a maker who never touched it still
+         * got a control that called `setPageSize(25)` on every host and
+         * overrode a setting the user had deliberately changed. That is the
+         * wrong default for an input nobody asked for.
+         *
+         * So the property is genuinely optional now. Unset, the control adopts
+         * whatever the platform is already doing and **never calls
+         * `setPageSize` at all**; set, it overrides. Adopting still has to
+         * record the number, because `currentPage()` and `pagerLabel()` both
+         * need to know how big a page is — reading it is not the same as
+         * asking for it.
+         */
+        if (raw === null || raw === undefined) {
+            this.appliedPageSize = dataset.paging.pageSize > 0 ? dataset.paging.pageSize : 1;
+
+            return;
+        }
+
         const wanted = Math.min(Math.max(Math.trunc(raw), 1), MAX_PAGE_SIZE);
 
         if (wanted === this.appliedPageSize) {

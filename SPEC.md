@@ -230,6 +230,38 @@ The fixture grew the case — `a09` has no name — because nothing in it had on
 before, which is why twelve records' worth of edges missed the row shape that a
 real view produced within a day.
 
+## What the main grid showed
+
+**A control replacing a view's own grid gets the whole grid area, and has to
+live inside it.** On a subgrid nothing had ever constrained the height, so
+nothing exposed that the control never asked for one: twenty-five rows rendered
+twenty-five rows tall, ran past the bottom of the page, and took the pager with
+them — and the pager is the only route to page two. `allocatedHeight` bounds the
+container now, the rows scroll inside it, the header is sticky, and the pager
+keeps its place. With no allocated height the control grows to its content
+exactly as before, which is right for a form section.
+
+**And the page size property was overriding a setting nobody asked it to
+touch.** `dataset.paging.pageSize` is what the host is already retrieving with —
+a user's own *Rows per page* personalisation on a main grid, the maker's setting
+on a subgrid — and the property shipped with `default-value="25"`, so a maker who
+never touched it still produced a control calling `setPageSize(25)` on every
+host. It has no default now: unset, the control reads the platform's size and
+asks for nothing; set, it overrides.
+
+That distinction is only expressible because `Whole.None` reads back as
+`number | null`. It is the same gap that forces the two boolean inputs to be
+named around the problem — a `TwoOptions` has no null, so "the maker did not
+choose" and "the maker chose false" are one value.
+
+**And a defect in this repository rather than in the control: `README.md`
+carried its whole body twice**, from the first commit, through four releases.
+The script that filled in the authoring placeholders searched for a comment by a
+string containing `\n`, the file had `\r\n`, `indexOf` returned `-1`, and
+`slice(0, -1)` joined to a slice taken from a different comment's end —
+overlapping, and repeating everything between. Nothing checks a README for
+saying the same thing twice.
+
 ## Not verified
 
 Nothing in this repository has been on a real Power App **except what is

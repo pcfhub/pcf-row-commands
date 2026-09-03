@@ -99,7 +99,7 @@
     <value>Tamaño de página</value>
   </data>
   <data name="PageSize_Desc" xml:space="preserve">
-    <value>Cuántas filas solicitar por página. La plataforma puede limitar los valores grandes.</value>
+    <value>Cuántas filas solicitar por página. Déjelo vacío para usar el tamaño de página que la aplicación o el usuario ya eligieron; establézcalo para reemplazarlo. La plataforma puede limitar los valores grandes.</value>
   </data>
   <data name="InvokedRecordId_Name" xml:space="preserve">
     <value>ID del registro invocado</value>
