@@ -583,6 +583,22 @@
     display: flex;
     align-items: center;
     gap: var(--spacingHorizontalM, 12px);
+    /*
+      Room of its own, and a line above it.
+
+      On a host that bounds the control — a main grid — the rows scroll and the
+      pager is pinned directly under them, which puts it hard against the
+      horizontal scrollbar with nothing between the two. The result reads as a
+      row of buttons that fell out of the table rather than as the table's
+      footer. The padding gives it somewhere to sit and the border says where
+      the scrolling region stopped.
+
+      Vertical padding only: the horizontal edges line up with the table's, and
+      indenting the pager away from the column it pages would look like an
+      accident.
+    */
+    padding: var(--spacingVerticalS, 8px) 0;
+    border-top: 1px solid var(--RowCommands-stroke-subtle);
 }
 
 /*
