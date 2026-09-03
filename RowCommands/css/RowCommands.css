@@ -64,6 +64,22 @@
     flex-direction: column;
     gap: var(--spacingVerticalS, 8px);
     width: 100%;
+    /*
+      **A model-driven main grid always reports `allocatedHeight: -1`.** That is
+      documented behaviour rather than a gap: the platform expects a component on
+      a table main grid or a related-records grid to fill the space with CSS, and
+      supplies a measured height only on a subgrid, where the maker types one in.
+
+      So the measurement cannot be the mechanism. `height: 100%` is, and it is
+      safe on every host: against a parent with a definite height — the main
+      grid — it fills it; against an auto-height parent, such as a form section
+      sizing itself around its contents, a percentage height computes to `auto`
+      and nothing changes. A pixel height from `allocatedHeight` still wins where
+      there is one, because that is set inline.
+    */
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 /*
@@ -487,29 +503,26 @@
     color: var(--RowCommands-foreground-danger);
 }
 
-/* ---- bounded: the host gave the control a height to live inside -------- */
+/* ---- filling the height, however the host expresses it ---------------- */
 
 /*
-  Set from `allocatedHeight` in index.ts. Without a height the control grows to
-  its content, which is right on a form section; with one — a main grid hands
-  over the whole grid area — the rows have to scroll inside it instead of
-  running past the bottom of the page and taking the pager with them.
+  These apply always, not only when a height was measured — which is the whole
+  correction. A main grid reports `allocatedHeight: -1` by design, so gating
+  them on a measurement meant the one host that most needed them never got
+  them: the rows ran past the bottom of the page and took the pager with them.
 
-  `min-height: 0` on the scrolling child is the part that is easy to miss: a
-  flex item's default minimum is its content, so without it the table refuses to
-  shrink and the overflow never engages. The symptom is identical to having no
-  height at all, which is what makes it hard to spot.
+  Against an auto-height parent they cost nothing, because there is no overflow
+  to scroll. `min-height: 0` on the scrolling child is the part that is easy to
+  miss: a flex item's default minimum is its content, so without it the table
+  refuses to shrink and the overflow never engages — a symptom identical to
+  having no height at all.
 */
-.RowCommands--bounded {
-    overflow: hidden;
-}
-
-.RowCommands--bounded .RowCommands-surface {
+.RowCommands .RowCommands-surface {
     flex: 1 1 auto;
     min-height: 0;
 }
 
-.RowCommands--bounded .RowCommands-scroll {
+.RowCommands .RowCommands-scroll {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -517,7 +530,7 @@
 
 /* The pager keeps its height whatever the rows do — it is the only route to
    page two, and it is what fell off the bottom. */
-.RowCommands--bounded .RowCommands-pager {
+.RowCommands .RowCommands-pager {
     flex: 0 0 auto;
 }
 
@@ -527,18 +540,18 @@
   horizontal axis, so its header cell is sticky on both and needs to outrank
   each of them — hence the third z-index.
 */
-.RowCommands--bounded .RowCommands-table th {
+.RowCommands .RowCommands-table th {
     position: sticky;
     top: 0;
     z-index: 1;
     background: var(--RowCommands-background);
 }
 
-.RowCommands--bounded .RowCommands-table td:last-child {
+.RowCommands .RowCommands-table td:last-child {
     z-index: 1;
 }
 
-.RowCommands--bounded .RowCommands-commandsHeader {
+.RowCommands .RowCommands-commandsHeader {
     z-index: 2;
 }
 

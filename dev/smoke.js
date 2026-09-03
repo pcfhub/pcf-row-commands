@@ -513,24 +513,27 @@ check(
 /* ==================================== the height the host allocated */
 
 /*
- * A main grid hands over the whole grid area and expects the control to live
- * inside it. Twenty-five rows is taller than that, so the rows ran off the
- * bottom of the page and took the pager with them — and the pager is the only
- * route to page two.
+ * A main grid reports `allocatedHeight: -1` **by design** — documented, not a
+ * gap: the platform expects a component there to fill the space with CSS, and
+ * measures a height only on a subgrid, where the maker types one in.
+ *
+ * So the class that used to gate the scroll layout on a measurement is gone.
+ * What is left for JS to decide is narrow: a pixel height where the host gave
+ * one, and nothing where it did not, leaving the stylesheet's `height: 100%` to
+ * do the work. The layout itself is CSS and nothing here computes layout, which
+ * is why this asserts the input to it rather than the result.
  */
 const bounded = bind({ height: 420 });
 
 check(
-    'a host that allocates a height gets a control that fits inside it',
-    bounded.container.classList.contains('RowCommands--bounded') &&
-        bounded.container.style.height === '420px',
+    'a measured height is taken as a pixel ceiling',
+    bounded.container.style.height === '420px',
     bounded.container.style.height,
 );
 
 check(
-    'and one that allocates none lets the control grow to its content',
-    view.container.classList.contains('RowCommands--bounded') === false &&
-        (view.container.style.height || '') === '',
+    'and an unmeasured one leaves no inline height, so the stylesheet decides',
+    (view.container.style.height || '') === '',
     `height -1 -> "${view.container.style.height || ''}"`,
 );
 

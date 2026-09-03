@@ -247,8 +247,17 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const allocated = context.mode.allocatedHeight;
         const known = typeof allocated === 'number' && allocated > 0;
 
+        /*
+         * A pixel height where the host measured one, and nothing where it did
+         * not — the stylesheet's `height: 100%` covers that case, and covers it
+         * better, because a main grid reports `-1` here by design and would
+         * otherwise get no height at all.
+         *
+         * There is no class to go with this any more. Gating the scroll layout
+         * on a measurement was the bug: the rules now apply always, and this
+         * only decides whether the height is a number or inherited.
+         */
         this.container.style.height = known ? `${allocated}px` : '';
-        this.container.classList.toggle('RowCommands--bounded', known);
     }
 
     /**
