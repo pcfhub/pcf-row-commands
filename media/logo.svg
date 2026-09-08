@@ -1,20 +1,34 @@
 <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Template placeholder. The top face of the PCFHub mark on its own: one
-       component rather than the whole stack.
+  <!-- A row, and the commands on it.
 
-       Geometry, ramp and inner diamond are the original's verbatim, shifted
-       down 19 so a face that sits at the top of the full mark is centred when
-       it stands alone. The gradient is declared in userSpaceOnUse, so its
-       coordinates move by the same 19; leaving them at the original 29 and 9
-       would slide the ramp off the shape.
+       The control puts open, launch and delete on the row itself rather than in
+       the command bar above the grid, so the mark is one row with the overflow
+       in it. Three dots is the right glyph precisely because it is the generic
+       one: that is where a user already looks for a per-row command.
+
+       The ramp is the PCFHub mark's own, verbatim, so this sits in the family rather
+       than beside it. Declared in userSpaceOnUse and spanning the whole 96
+       canvas, so the mark reads as one object lit from the top right.
+
+       Drawn for 32px. The dots are r 4.5 on 12 centres, which is a wider gap
+       than looks right at 80 and the closest spacing that still shows three
+       dots rather than a dash at 24.
 
        Note: no double hyphen may appear in this comment, or the whole document
        fails to parse as XML. -->
   <defs>
-    <linearGradient id="mark-top" x1="8" y1="48" x2="88" y2="28" gradientUnits="userSpaceOnUse">
+    <linearGradient id="row-commands-ramp" x1="6" y1="80" x2="90" y2="16" gradientUnits="userSpaceOnUse">
       <stop stop-color="#A684FF"/><stop offset="0.6" stop-color="#7C86FF"/><stop offset="1" stop-color="#00BCFF"/>
     </linearGradient>
   </defs>
-  <path d="M48 28 88 48 48 68 8 48Z" fill="url(#mark-top)"/>
-  <path d="M48 41.5 61 48 48 54.5 35 48Z" fill="#F8FAFC" fill-opacity="0.92"/>
+  <!-- The row. -->
+  <rect x="6" y="32" width="84" height="32" rx="16" fill="url(#row-commands-ramp)"/>
+
+  <!-- Its primary column. -->
+  <rect x="18" y="44" width="26" height="8" rx="4" fill="#F8FAFC"/>
+
+  <!-- The commands. -->
+  <circle cx="58" cy="48" r="4.5" fill="#F8FAFC"/>
+  <circle cx="70" cy="48" r="4.5" fill="#F8FAFC"/>
+  <circle cx="82" cy="48" r="4.5" fill="#F8FAFC"/>
 </svg>
