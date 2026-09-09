@@ -494,6 +494,32 @@ check(
 );
 
 /*
+ * **Repaginating resets the page, and applying the first size does not.**
+ *
+ * A page size that changes *after* one has been applied recuts the result set,
+ * so "page 3" stops meaning what it meant and the platform answers a request
+ * for it with nothing. The first application is the other case: at mount the
+ * platform is already on page one, and `reset()` is a fetch — so resetting
+ * there buys a round trip for nothing.
+ *
+ * Mutating the maker's input mid-flight is the only way to reach this from a
+ * suite. The property is read fresh from `options.inputs` on every pass, so
+ * this is the rig's model of a property edited in the form designer — which is
+ * the only way it changes in this control, and why the bug went unnoticed here
+ * long enough for `pcf-data-table` to find it with a rows-per-page picker.
+ */
+const resetOnMount = callsLike(overridden, 'paging.reset').length;
+
+overridden.handle.options.inputs.pageSize = 9;
+overridden.settle();
+
+check(
+    'the first page size costs no reset, and changing it afterwards does',
+    resetOnMount === 0 && callsLike(overridden, 'paging.reset').length === 1,
+    `${resetOnMount} at mount, ${callsLike(overridden, 'paging.reset').length} after the change`,
+);
+
+/*
  * A host that reports no page size at all. `0` means "did not say", and the
  * first version of this treated it as one-row-per-page — so a view handing over
  * twenty rows would have drawn one, which is the worst possible reading of a
