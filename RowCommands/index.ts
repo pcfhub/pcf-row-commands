@@ -1178,10 +1178,50 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
  * the end of a row, next to two harmless buttons, is a mistake waiting to be
  * made — so a host that cannot ask does not get to delete.
  */
+/**
+ * Whether this host is one where a model-driven-only API means anything.
+ *
+ * **`typeof x.method === 'function'` is not that test.** Measured with a host
+ * probe on a real canvas app, 2026-09-22: **fifteen of fifteen** platform
+ * surfaces are published there — `webAPI.deleteRecord` and
+ * `navigation.openConfirmDialog` among them — and the ones safe to call throw
+ * `Method not implemented.` from the call itself. So a presence test passes on
+ * canvas and the feature is offered where it can only fail.
+ *
+ * What does discriminate is **an answer rather than a method**. `getClientUrl`
+ * refuses by throwing, and a thrown refusal is an answer once it is caught. It
+ * is undocumented — absent from the API reference entirely — which is why it is
+ * read defensively and why the `Xrm` global is tried after it.
+ *
+ * A model-driven host that publishes neither loses the Delete command. That is
+ * the safe direction: a command that is missing is a smaller wrong than one
+ * that deletes nothing and reports an error.
+ */
+function modelDrivenHost(context: ComponentFramework.Context<IInputs>): boolean {
+    const ask = <T>(call: () => T): T | undefined => {
+        try {
+            return call();
+        } catch {
+            return undefined;
+        }
+    };
+
+    const page = (context as { page?: { getClientUrl?: unknown } }).page;
+    const fromPage = typeof page?.getClientUrl === 'function'
+        ? ask(() => (page.getClientUrl as () => unknown)())
+        : undefined;
+    const fromGlobal = ask(() => (globalThis as {
+        Xrm?: { Utility?: { getGlobalContext?: () => { getClientUrl?: () => unknown } } };
+    }).Xrm?.Utility?.getGlobalContext?.()?.getClientUrl?.());
+
+    return [fromPage, fromGlobal].some((url) => typeof url === 'string' && url !== '');
+}
+
 function canDelete(context: ComponentFramework.Context<IInputs>): boolean {
     return (
         typeof context.webAPI?.deleteRecord === 'function' &&
-        typeof context.navigation?.openConfirmDialog === 'function'
+        typeof context.navigation?.openConfirmDialog === 'function' &&
+        modelDrivenHost(context)
     );
 }
 

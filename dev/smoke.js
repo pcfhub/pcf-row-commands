@@ -621,6 +621,28 @@ check(
     commandOn(noWebApi, 0, 'delete') === null && commandOn(noWebApi, 0, 'open') !== null,
 );
 
+/*
+ * **Canvas publishes `deleteRecord` and `openConfirmDialog`, and refuses
+ * them.** Measured with a host probe on a real canvas app, 2026-09-22:
+ * fifteen of fifteen platform surfaces came back present there, and the ones
+ * safe to call threw `Method not implemented.` from the call itself.
+ *
+ * So the presence test above passes on canvas, and this command was offered on
+ * a host where pressing it can only report a failure. The assertion above says
+ * "no webAPI", which is a host this rig invents with `webAPI: false` — canvas
+ * is not that host, and never was.
+ *
+ * What withholds it now is `modelDrivenHost`: an *answer* from
+ * `page.getClientUrl` rather than the existence of a method.
+ */
+const onCanvas = bind({ inputs: { showDelete: true }, host: 'canvas' });
+
+check(
+    'and withholds Delete on canvas, where both methods exist and refuse',
+    commandOn(onCanvas, 0, 'delete') === null && commandOn(onCanvas, 0, 'open') !== null,
+    'delete withheld, open still offered',
+);
+
 const noDialogs = bind({ inputs: { showDelete: true }, dialogs: 'absent' });
 
 check(

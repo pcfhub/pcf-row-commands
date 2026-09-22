@@ -1175,6 +1175,39 @@
                     }
                     : undefined,
 
+                /**
+                 * `context.page`, which is not in the typings and is absent
+                 * from the API reference entirely.
+                 *
+                 * **It is the only measured way to tell a model-driven host
+                 * from a canvas one.** Every other surface is published on
+                 * both — fifteen of fifteen, measured with a host probe on a
+                 * real canvas app, 2026-09-22 — so `typeof x === 'function'`
+                 * answers the same on each. `getClientUrl` is published on both
+                 * too, but it *answers* on one and **throws** on the other, and
+                 * a thrown refusal is an answer once it is caught.
+                 *
+                 * This rig had no `page` at all, which is why `canDelete`
+                 * withheld the command everywhere the moment it started asking.
+                 * `o.page: false` models a model-driven host that publishes
+                 * neither this nor `Xrm` — the hub's demo harness — where the
+                 * command is withheld, deliberately: a missing command is a
+                 * smaller wrong than one that deletes nothing.
+                 */
+                page: o.page === false
+                    ? undefined
+                    : {
+                        getClientUrl: function () {
+                            log('page.getClientUrl');
+
+                            if (o.host === 'canvas') {
+                                throw new Error('getClientUrl: Method not implemented.');
+                            }
+
+                            return 'https://rig.crm.invalid';
+                        },
+                    },
+
                 navigation: buildNavigation(),
 
                 resources: {
