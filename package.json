@@ -15,7 +15,9 @@
     "refreshTypes": "pcf-scripts refreshTypes",
     "smoke": "node dev/smoke.js",
     "harness": "node dev/serve.js",
-    "lint": "eslint RowCommands --ext .ts,.tsx"
+    "lint": "eslint RowCommands --ext .ts,.tsx",
+    "bump": "node scripts/version.mjs",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
