@@ -7,7 +7,7 @@
   -->
   <control namespace="PCFHub"
            constructor="RowCommands"
-           version="0.1.8"
+           version="0.1.9"
            display-name-key="RowCommands_Name"
            description-key="RowCommands_Desc"
            control-type="standard">
@@ -206,8 +206,16 @@
       place — a commented feature declares nothing, but it invites somebody to
       uncomment the pair rather than the one.
     -->
+    <!--
+      PROBE 0.1.9 (P1 again): `Utility`, because 0.1.8 measured that
+      `utils.hasEntityPrivilege` is published without it and THROWS at the
+      call — "Feature 'Utility.hasEntityPrivilege' is required to be specified
+      in the <uses-feature> section". The comment above is 0.1.7's and is
+      rewritten with 0.2.0.
+    -->
     <feature-usage>
       <uses-feature name="WebAPI" required="false" />
+      <uses-feature name="Utility" required="false" />
     </feature-usage>
   </control>
 </manifest>
