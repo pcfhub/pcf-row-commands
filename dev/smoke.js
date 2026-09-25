@@ -237,15 +237,29 @@ if (typeof registration.ctor !== 'function') {
 const view = bind({});
 
 /*
- * A control that mutates in `updateView` without a guard never stops. Two
- * passes is the settled number — one render, then one more for the page size it
- * asked for on the first.
+ * A control that mutates in `updateView` without a guard never stops. With the
+ * page size input unset — a fresh install — the control asks for nothing and
+ * settles in one pass; set, it takes one more for the size it asked for.
+ *
+ * This read "two passes" until the rig was ported onto the template's, because
+ * the old rig handed the host's page size in as the control's input, so the
+ * unset case — the one every install starts in — was unreachable.
  */
 check(
     'settles instead of refreshing forever',
-    !view.driven.looping && view.driven.passes === 2,
+    !view.driven.looping && view.driven.passes === 1,
     `${view.driven.passes} passes, calls: ${view.calls().join(' ')}`,
 );
+
+const sized = bind({ inputs: { pageSize: 10 } });
+
+check(
+    'and in one more pass when the page size is set',
+    !sized.driven.looping && sized.driven.passes === 2 && callsLike(sized, 'setPageSize').length === 1,
+    `${sized.driven.passes} passes, calls: ${sized.calls().join(' ')}`,
+);
+
+sized.destroy();
 
 const headers = view.findAll('th').map((th) => th.textContent);
 
