@@ -364,7 +364,7 @@ rows come later in the document, so they paint over it. **It had been that way
 since 0.1.5** (3 September), which added both rules on the same day; nothing
 had scrolled a main grid far enough since for anyone to look. `th.` in the
 selector is the fix — 0.2.1 — measured the same way: visible scrolled down,
-visible scrolled down and across.
+visible scrolled down and across. **Confirmed on the Accounts main grid the same day**: the header stays at the top while the rows scroll.
 
 No assertion can see this, and none was added: `dev/dom.js` has no cascade.
 The check is the one the skill already names for a stylesheet — read the
