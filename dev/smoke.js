@@ -596,6 +596,12 @@ check(
  * exactly like something had — which is a problem worth fixing even when the
  * rendering is correct, because the row next to a Delete button has to be
  * identifiable.
+ *
+ * **And the fix for it never ran on a form until 0.2.2.** It tested `=== ''`,
+ * this rig answered `''` for an empty column, and a real main grid answers
+ * `null` (measured 2026-09-25: a blank cell and a button reading "Open
+ * null"). The rig answers `null` now, so these four assertions are about the
+ * value the platform sends.
  */
 const nameless = bind({ pageSize: 12 });
 const namelessRow = rowsOf(nameless)[8];
@@ -628,6 +634,21 @@ check(
     commandOn(nameless, 8, 'open').getAttribute('aria-label') === 'Open resx:RowCommands_Untitled',
     commandOn(nameless, 8, 'open').getAttribute('aria-label'),
 );
+
+{
+    // A name of nothing but spaces reads as blank all the same.
+    const spaced = bind({
+        pageSize: 12,
+        records: fixture.records.map((row) => (row.id === 'a01' ? { ...row, values: { ...row.values, name: '   ' } } : row)),
+    });
+
+    check(
+        'a name of only spaces is treated as no name',
+        rowsOf(spaced)[0].querySelector('td').className === 'RowCommands-untitled'
+            && commandOn(spaced, 0, 'open').getAttribute('aria-label') === 'Open resx:RowCommands_Untitled',
+        commandOn(spaced, 0, 'open').getAttribute('aria-label'),
+    );
+}
 
 /* ============================================== which hosts can delete */
 

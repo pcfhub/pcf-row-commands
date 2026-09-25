@@ -774,8 +774,16 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
              * be noise — it is the row's *identity* that has to be legible,
              * because that is what the commands act on and what the
              * confirmation dialog names.
+             *
+             * **Empty arrives as `null`, not `''`.** Measured on the Accounts
+             * main grid 2026-09-25: a nameless account's cell was blank and
+             * its button read "Open null", because this compared against `''`
+             * — the value the rig had always answered and the platform never
+             * sends. It shipped that way from 0.1.x to 0.2.1, so the fix for
+             * the ten blank rows above never ran on a form. `textOf` takes
+             * every empty shape, a name of spaces included.
              */
-            const primaryValue = record.getFormattedValue(primary.name);
+            const primaryValue = textOf(record.getFormattedValue(primary.name));
             const label = primaryValue !== '' ? primaryValue : getString('RowCommands_Untitled');
 
             if (selectable) {
@@ -787,9 +795,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
             for (const column of columns) {
                 const cell = row.insertCell();
-                const value = record.getFormattedValue(column.name);
+                const value = record.getFormattedValue(column.name) ?? '';
 
-                if (value === '' && column.name === primary.name) {
+                if (column.name === primary.name && primaryValue === '') {
                     cell.textContent = label;
                     cell.className = 'RowCommands-untitled';
 
@@ -1293,7 +1301,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const ids = [...this.selected];
         const primary = columns.find((column) => column.isPrimary) ?? columns[0];
         const labelOf = (id: string): string => {
-            const value = dataset.records[id]?.getFormattedValue(primary.name) ?? '';
+            const value = textOf(dataset.records[id]?.getFormattedValue(primary.name));
 
             return value !== '' ? value : getString('RowCommands_Untitled');
         };
@@ -2087,6 +2095,20 @@ function asBoolean(raw: unknown, fallback: boolean): boolean {
     }
 
     return fallback;
+}
+
+/**
+ * A formatted value as text, with every empty shape as `''`: `null` (what an
+ * empty column is on a real form — measured), `undefined`, and a value of
+ * nothing but spaces, which a name can be and which reads as blank all the
+ * same. Trimmed only for the emptiness test; a real name keeps its spacing.
+ */
+function textOf(value: unknown): string {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    return value.trim() === '' ? '' : value;
 }
 
 /**

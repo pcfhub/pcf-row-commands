@@ -371,6 +371,24 @@ The check is the one the skill already names for a stylesheet — read the
 computed value back — and it goes into the walkthrough for every control with a
 sticky header over a sticky column.
 
+**Nine blank rows at the top of the main grid, and the 0.1.x fix for them had
+never run.** The same screenshot showed the rows 0.1.x's *What a real form
+showed* describes — nameless accounts sorted first — still blank, where the
+cell was meant to read *this record*. Measured with one line in the console:
+the first row's name cell had no class and no text, and its Open button's
+`aria-label` was **`"Open null"`**. `getFormattedValue` answers `null` for an
+empty column; the control compared against `''`, which is what `dev/host.js`
+had always answered and the platform never sends. So the placeholder shipped
+in 0.1.x, passed four assertions for three weeks, and drew nothing on the form
+it was written for.
+
+0.2.2 reads the name through `textOf` (any non-string is empty, and so is a
+name of nothing but spaces), the rig — here and in `_template` — answers
+`null` for an empty column, and putting 0.2.1's read back fails five
+assertions with the form's own "Open null". Measured on a text column; an
+empty number, choice or lookup is modelled the same way and not watched.
+
+## Not verified
 
 Nothing in this repository has been on a real Power App **except what is
 recorded above**. Every other platform answer comes from `dev/host.js`.
