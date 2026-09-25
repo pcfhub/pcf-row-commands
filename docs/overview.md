@@ -8,7 +8,7 @@ order: 1
 
 Open a record, launch a URL, or delete it with a confirm, from the row itself.
 
-::image{src=media/screenshot.png alt="A view of accounts with an Open and an Open link button on each row" zoom}
+::image{src=media/screenshot.png alt="A view of accounts with two rows ticked, a bar reading 2 selected with Delete selected and Clear selection, and Open, Open link and Delete on each row" zoom}
 
 ## Why this one
 
@@ -24,7 +24,23 @@ two checkboxes and one column mapping, and no ribbon customisation anywhere.
 - **Open link** follows an address held in a column you map. It appears only on
   rows where that column holds an address the control is willing to open.
 - **Delete** asks for confirmation, then deletes. It is off by default, and it
-  is offered only where the host can do both halves.
+  is offered only where the host can do both halves — and, since 0.2.0, only to
+  a user whose security roles allow deleting from the table at all.
+
+## New in 0.2.0
+
+- **Select rows, and delete them together.** Turn on **Show row selection** and
+  every row gets a checkbox. The selected rows can be deleted with one
+  confirmation, one after another, with progress and a **Stop** — and the
+  subgrid's own command bar, which now appears above the control, acts on the
+  same selection: Assign, Share, Run flow.
+- **Resize columns.** Drag a column's edge, or focus it and use the arrow keys.
+  The width is remembered for that user in that browser, per view, until they
+  reset it.
+- **Delete follows security roles.** A user who may not delete from the table
+  is not offered **Delete** at all, rather than meeting the server's refusal.
+
+::image{src=media/screenshot-resize.png alt="A column edge being dragged: a blue line on the Account name column's edge, the column wider than its neighbours" zoom}
 
 ## Commands hide rather than fail
 
@@ -47,5 +63,6 @@ with. Power Pages is not supported.
 :::
 
 The control binds a dataset — a view, a subgrid, or a canvas table — and reads
-whatever columns it is given. It bundles no framework and requests one
-permission at install, for the delete.
+whatever columns it is given. It bundles no framework and requests two
+permissions at install, both optional: the Web API, for the delete, and
+Utility, to ask whether the user's roles allow one.

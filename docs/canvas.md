@@ -37,6 +37,8 @@ RowCommands1.Records = Accounts
 | URL column | the column holding the address, chosen in **Fields** |
 | Hide the open command | `false` |
 | Show the delete command | `false` — it does nothing here |
+| Show row selection | `false` — see below |
+| Lock column widths | `false` to let users resize columns |
 | Page size | `25` |
 
 ## Reading the output
@@ -55,7 +57,7 @@ Notify(
 | Output | What it holds |
 | --- | --- |
 | `InvokedRecordId` | The row whose command was pressed |
-| `InvokedCommand` | `open`, `url` or `delete` |
+| `InvokedCommand` | `open`, `url`, `delete` or `deleteSelected` — the last two model-driven only |
 | `InvokeCount` | How many presses there have been |
 
 :::callout{type=info}
@@ -84,3 +86,15 @@ If(
 do nothing with. The output fires either way, so the formula above is the
 reliable route — see [Model-driven apps](model-driven.md) for what the same
 button does there.
+
+## Selection and column widths
+
+**Resizing works here** as it does on a form, and the widths are remembered in
+the browser — keyed by the table and the set of columns, because a canvas table
+has no saved view to key them by.
+
+**Selection draws, and what the app can read from it is not yet verified.** The
+checkboxes work and the control hands the ticked rows to the platform, but
+whether a canvas app sees them through the control's `Selected` or
+`SelectedItems` has not been tried on a real app. **Delete selected** is never
+offered here, for the same reason **Delete** is not.

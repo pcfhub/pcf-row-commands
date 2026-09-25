@@ -36,14 +36,40 @@ Each of these is a constraint that was chosen, not a defect waiting on a fix.
   and does not load everything. Page size is a request rather than an
   instruction, and the platform's ceiling is 250.
 
-- **No selection, and no bulk commands.** Every command acts on the row it is
-  in. Deleting twenty rows is twenty presses and twenty confirmations. Bulk
-  actions belong on the subgrid command bar, which already does them.
+- **A selection is the page on screen.** Turning a page, sorting, or changing
+  the page size clears it, so **Select all** means the rows you can see and a
+  delete never reaches a row that scrolled away. To act on more than a page,
+  raise **Page size** — up to the platform's 250.
 
-- **The buttons reflect the host, not the user's privileges.** The control can
-  ask what APIs exist; it cannot ask whether this user may delete this record.
-  A user without the Delete privilege sees the button and gets the platform's
-  error dialog when the server refuses.
+- **Selected rows are deleted one after another, not in one request.** Each
+  record is its own delete, so **Stop** takes effect at the next record, and a
+  record that fails — a cascade restriction, a record somebody else deleted —
+  is named in the error dialog and left selected, while the rest go ahead. It is
+  slower than a batch past a few dozen rows, and deliberately so.
+
+- **Delete follows roles for the table, not for each record.** The control asks
+  whether the user's security roles allow Delete on the table at any depth, and
+  hides both **Delete** commands when they allow none. A user whose roles allow
+  deleting only their own records still sees **Delete** on other people's rows,
+  and gets the server's refusal there. Asking per record would cost a request
+  per row.
+
+- **Where the question cannot be asked, Delete is offered as before.** Checking
+  roles needs the *Utility* feature, which the control declares as optional. A
+  host that withholds it — or a canvas app, which has no delete anyway — gets
+  0.1.x's behaviour.
+
+- **Column widths are remembered per browser, not per user profile.** They live
+  in the browser's own storage for this site, keyed by table and view. Another
+  browser, another machine or a cleared cache starts from the view's widths. A
+  browser that refuses storage — a private window, blocked site data — still
+  resizes, for that visit.
+
+- **The subgrid's command bar appears above the control.** Since 0.2.0 it is
+  switched on, because it acts on the rows this control selects. It appears on
+  every subgrid the control is on as soon as 0.2.0 is imported — no form change
+  needed — and it cannot be turned off from the form. See
+  [Migrating to 0.2.0](migration.md). The view selector and quick find stay off.
 
 - **Below about 560 pixels the commands lose their labels.** The buttons stay,
   in the same order, at the same size, and each still names itself and its row

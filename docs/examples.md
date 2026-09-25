@@ -44,8 +44,30 @@ A holding table for imported rows, where deleting the bad ones is the point.
 | Page size | 50 |
 
 Model-driven only — see [Canvas apps](canvas.md). Every delete asks first, and
-a user without the Delete privilege on the table gets the platform's error
-dialog rather than a silent failure.
+a user whose roles allow no Delete on the table is not offered it.
+
+## Clearing out many at once
+
+The same staging table, where the bad rows come in dozens. Tick them, press
+**Delete selected**, confirm once.
+
+| Setting | Value |
+| --- | --- |
+| Show the delete command | **Yes** |
+| Show row selection | **Yes** |
+| Page size | 100 |
+
+The page size matters here: a selection is the page on screen, so the page is
+the most one confirmation can reach. The command bar that appears above the
+subgrid acts on the same ticks — **Assign** a batch to a colleague instead of
+deleting it.
+
+## A wide view people read
+
+Nine columns and a long account name. Leave **Lock column widths** at No, and
+each user can widen what they read and narrow what they do not; the next visit
+remembers. Lock it for a view whose layout is part of a process — a view
+printed or screenshotted into a procedure — so everyone sees the same thing.
 
 ## Reacting to a command in canvas
 

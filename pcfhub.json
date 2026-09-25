@@ -2,15 +2,21 @@
   "schemaVersion": 1,
   "slug": "pcf-row-commands",
   "name": "Row Commands",
-  "tagline": "Open a record, launch a URL, or delete it with a confirm, from the row itself.",
+  "tagline": "Open, launch or delete from the row itself — select rows to delete together, and resize the columns.",
   "category": "data",
-  "hosts": ["canvas", "model-driven"],
+  "hosts": [
+    "canvas",
+    "model-driven"
+  ],
   "tags": [
     "commands",
     "navigation",
     "delete",
     "confirmation",
-    "no-react"
+    "no-react",
+    "selection",
+    "bulk-delete",
+    "resizable-columns"
   ],
   "control": {
     "namespace": "PCFHub",
@@ -31,6 +37,7 @@
     "logo": "media/logo.png",
     "screenshots": [
       "media/screenshot.png",
+      "media/screenshot-resize.png",
       "media/screenshot-delete.png",
       "media/screenshot-mobile.png",
       "media/screenshot-dark.png"
@@ -47,7 +54,9 @@
       "Opening a record reaches a Dataverse this page does not have. Open calls context.navigation.openForm, falling back to the dataset's own openDatasetItem where that is missing, and the harness answers neither — so there is no form to arrive at. The invokedRecordId, invokedCommand and invokeCount outputs still update, which is the value a canvas app would react to, and it is the same thing the control reports on a real form.",
       "Delete is not offered here at all, and that is the control's real behaviour rather than a hole in the demo. It needs context.webAPI to remove the record and context.navigation.openConfirmDialog to ask first, the sandbox has neither, and a delete that cannot be confirmed is one this control declines to draw. A canvas app shows exactly this. The Show the delete command preset below is here to demonstrate that, not to work around it.",
       "The website addresses in the fixture are example.com placeholders, so following one leads nowhere. What is real is which rows offer the link and which do not: the address is read from a bound column, checked against http and https, and a row whose column is empty gets no button. One record in the fixture has no address for that reason.",
-      "Everything is on one page. The harness seeds a single page and reports no next or previous page, so the pager is drawn and inert — paging, sorting and the page-size property need a real view behind them. That is why this demo is limited rather than full, and it is the same ceiling every dataset control on the hub is under."
+      "Everything is on one page. The harness seeds a single page and reports no next or previous page, so the pager is drawn and inert — paging, sorting and the page-size property need a real view behind them. That is why this demo is limited rather than full, and it is the same ceiling every dataset control on the hub is under.",
+      "Selection works here as a checkbox column and a bar, but Delete selected is not offered, for the same reason Delete is not: nothing on this page can delete or confirm. The subgrid command bar that acts on a selection on a real form is part of the form, not of the control, so it is not here either. And the harness keeps no selection between renders, so a tick can clear when the demo re-renders the control.",
+      "Resizing works for real. Drag a column edge, or tab to it and press the arrow keys. Whether the width is remembered across a reload depends on whether this page may use the browser's storage; where it may not, the width lasts until the page is reloaded, which is the control's real behaviour on a browser that refuses storage."
     ],
     "presets": [
       {
@@ -57,9 +66,23 @@
         "props": {
           "hideOpen": false,
           "showDelete": false,
-          "pageSize": 8
+          "pageSize": 8,
+          "showSelection": false,
+          "lockColumnWidths": false
         },
         "isDefault": true
+      },
+      {
+        "slug": "select-and-resize",
+        "name": "Select rows, resize columns",
+        "description": "New in 0.2.0: a checkbox per row, a header that selects the page, and a bar counting the selection. Drag a column edge, or tab to it and use the arrow keys, and the column follows.",
+        "props": {
+          "hideOpen": false,
+          "showDelete": true,
+          "showSelection": true,
+          "lockColumnWidths": false,
+          "pageSize": 8
+        }
       },
       {
         "slug": "links-only",
@@ -68,7 +91,9 @@
         "props": {
           "hideOpen": true,
           "showDelete": false,
-          "pageSize": 8
+          "pageSize": 8,
+          "showSelection": false,
+          "lockColumnWidths": false
         }
       },
       {
@@ -78,7 +103,9 @@
         "props": {
           "hideOpen": false,
           "showDelete": true,
-          "pageSize": 8
+          "pageSize": 8,
+          "showSelection": false,
+          "lockColumnWidths": false
         }
       },
       {
@@ -88,7 +115,9 @@
         "props": {
           "hideOpen": false,
           "showDelete": false,
-          "pageSize": 4
+          "pageSize": 4,
+          "showSelection": false,
+          "lockColumnWidths": false
         }
       }
     ]

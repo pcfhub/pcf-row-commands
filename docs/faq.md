@@ -16,6 +16,8 @@ Three possibilities, in the order they are worth checking:
 3. The control could not find both `webAPI.deleteRecord` and the platform's
    confirmation dialog on this host. It draws the button only when it can do the
    whole operation, confirmation included.
+4. Your security roles allow no **Delete** on this table. Since 0.2.0 the
+   control asks, and does not offer a command the server would refuse.
 
 ## Why is there no Open link on some rows?
 
@@ -47,10 +49,29 @@ name. The counter changes every time, which is what makes the repeat visible.
 
 ## Does the view refresh after I edit a record I opened?
 
-On a model-driven form, yes. The control opens the form with
-`navigation.openForm`, which reports when the form closes, and refreshes then.
-Where that method is unavailable it falls back to the dataset's own open, which
-gives no completion signal — so there is nothing to refresh on.
+On a model-driven form, yes, though not for the reason earlier versions of this
+page gave. The form opens in place of the page, and coming back mounts the
+control again with fresh rows. `navigation.openForm` was measured resolving as
+the form opens, not as it closes.
+
+## Why did a command bar appear above my subgrid?
+
+Because of 0.2.0. The command bar acts on the rows this control selects, so it
+is switched on — and the platform reads that from the installed control, not
+from the form, so it appeared on every subgrid when 0.2.0 was imported. See
+[Migrating to 0.2.0](migration.md).
+
+## Why did my ticks disappear when I turned the page?
+
+A selection is the rows on screen. Turning a page, sorting or changing the page
+size clears it, so a delete can never reach a row you are not looking at. Raise
+**Page size** to select more at once.
+
+## My column widths are gone on another computer.
+
+They are kept by the browser, for this site, per view — not in your Dataverse
+profile. Another browser, another machine, or clearing site data starts from the
+view's own widths.
 
 ## Where does the delete confirmation's wording come from?
 
@@ -60,6 +81,8 @@ the view's primary column.
 
 ## What permission does it ask for at install?
 
-One: **WebAPI**, declared optional, and used only by the delete. Nothing else is
-declared — opening a record, opening a URL and the dialogs need no feature
-declaration at all.
+Two, both declared optional. **WebAPI**, used only by the deletes, and since
+0.2.0 **Utility**, used only to ask whether the user's roles allow a delete —
+the platform refuses that question from a control that has not declared it.
+Opening a record, opening a URL, the dialogs, the selection and the column
+widths need no feature declaration at all.
