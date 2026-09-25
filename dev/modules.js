@@ -2,7 +2,7 @@
  * Load a control's own TypeScript modules in Node, without the bundle.
  *
  *     const { createLoader } = require('./modules');
- *     const load = createLoader({ root: path.join(__dirname, '..', '__CONTROL__'), forbid: /monaco-editor/ });
+ *     const load = createLoader({ root: path.join(__dirname, '..', 'RowCommands'), forbid: /monaco-editor/ });
  *     const { validateJson } = load('validate');
  *
  * `dev/smoke.js` normally drives the **built bundle**, because webpack, the
