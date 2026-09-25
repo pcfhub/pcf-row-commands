@@ -316,41 +316,78 @@ reload, then from the console on a form carrying the control:
 | P6 | Press on the right edge of a column header, drag a little, release; `drag()` | resize on a subgrid at all | **0.1.9, subgrid, 2026-09-25: the right way.** Two presses on a header: `pointerdown` (buttons 1, not default-prevented), `setPointerCapture` → `true`, `pointerup` 250px and 484px away, then `lostpointercapture`. The form takes nothing from a header drag, and capture holds for the length of it. Resize ships on subgrids. |
 | P7 | `confirm()` and press **Cancel**. Then `openFirst()`: change the name, save, close; compare `opened` and `settled` | two long-open *Not verified* items below | **0.1.9, 2026-09-25.** The confirmation opened and **Cancel** was pressed; the value it resolved with was not pasted, so *cancel resolves `{ confirmed: false }`* is still owed — the walkthrough asks it. **`openForm` settled 309 ms after the call** (16:45:56.102 → .411), resolving `{ savedEntityReference: [{ entityType: "account", id: "58dd8a45-…", name: "account" }] }`. So it settles on **navigation**, not on close — the form opens in place, as `pcf-hierarchy-view` measured — and it carries the opened record, not the empty array this SPEC said an ordinary form resolves with. The refresh after `openForm` is therefore moot (the control is torn down by the navigation; `disposed` guards it), and a returning user gets a fresh mount and fresh data. |
 
+## What 0.2.0's build disagreed with
+
+**A table that stretches cannot hold a dragged width.** 0.1.x set the table's
+`min-width` and left `width: 100%`, so on a host wider than the columns the
+browser shared the surplus into every column — ×2.23 on a 2,490px main grid
+(P5). A user drags a column to 260 and it draws at 580. So the table's width is
+now set outright, and `widths.ts` shares the surplus itself, to the columns
+nobody resized, which is what 0.1.x's stretch looked like for a control nobody
+has touched. The command column no longer stretches with them; that one change
+is visible on a wide host and is in `docs/migration.md`.
+
+**The dark screenshot had white squares in it.** Native checkboxes draw in the
+light scheme unless the surface says otherwise, so every unticked row on the dark
+fallbacks carried a white box. `color-scheme: dark` on `.RowCommands--dark`.
+No assertion could see it; retaking `media/` did.
+
+**Six mutations of the first suite passed.** Three because the mutation broke
+lint — `if (true)`, an unused import — and `pcf-scripts build` then writes no
+bundle and exits 0, so the suite ran yesterday's; the md5 of the bundle is now
+part of every mutation run. The other three were real: the *still press*
+assertion held whether or not the guard existed (a width changes only on a move,
+so the guard is tidiness — the comment said more and was corrected); *a page
+turn clears the selection* passed on pruning alone, and now asserts the clear
+happens before the page arrives; and *torn down mid-run* tore down before the
+dialog answered, and now tears down inside the first delete.
+
+**`dev/dom.js` returns an array from `querySelectorAll`**, and a browser returns
+a NodeList, which has no `find`. The focus-restoring code calls `Array.from`
+first; without it the suite passes and the browser throws. A rig gap, noted for
+`_template`.
+
 ## Not verified
 
 Nothing in this repository has been on a real Power App **except what is
-recorded above**. Every platform answer
-comes from `dev/host.js`, which was written from the type definitions and the
-reference. Four items are load-bearing:
+recorded above**. Every other platform answer comes from `dev/host.js`.
 
-- **That a cancelled `openConfirmDialog` really does resolve** with
-  `{ confirmed: false }` rather than rejecting. Still open, and note what the
-  form above did *not* show: that delete was confirmed, not cancelled, so the
-  success path is proven and the cancel path is exactly as unproven as it was.
-  It is the one that costs a record if it is wrong. Proving it: one press and
-  one **Cancel**.
-- **That `openForm`'s promise settles when the form closes**, rather than when
-  it opens. The refresh-after-edit behaviour is worth nothing if it resolves
-  immediately, and the type definitions do not say which it is. Proving it: open
-  a record, change the primary column, save, close, and see whether the row
-  updates.
-- **That `of-type-group` works on a dataset `property-set` in canvas.**
-  Microsoft's property schema reference is commonly read as listing
-  `of-type-group` under model-driven apps only, and this control uses one for
-  the URL role. If that reading is right, the **Open link** command is
-  model-driven only and `docs/canvas.md` is wrong about it. Treated as
-  unconfirmed rather than assumed either way. Proving it: bind the role in a
-  canvas app and see whether the column picker offers anything.
-- **That the outputs reach a canvas `OnChange` at all**, and that `InvokeCount`
-  is what makes a repeated press fire it. Inherited from `pcf-action-button`'s
-  `PressCount`, which has not been on a real app either. Proving it: two
-  identical presses and a `Notify()`.
+**For 0.2.0, the walkthrough (W1–W8), on the Accounts test form:**
 
-Two smaller ones: that a subgrid without `cds-data-set-options` really does
-suppress the command bar as intended, and that the platform's error dialog shows
-`details` in the way the type documentation describes — the control puts the
-server's explanation there rather than in `message`, and nobody has seen it
-rendered.
+| # | Do | Expect |
+| --- | --- | --- |
+| W1 | Import 0.2.0 over 0.1.9. Look at the import. | *Utility* was already accepted by 0.1.9; note whether it asks again. |
+| W2 | On the subgrid, set **Show row selection** Yes, **Show the delete command** Yes. Tick three rows, **Delete selected**, press **Cancel**. | Nothing deleted, the three stay ticked, "Nothing was deleted." — and **the cancel resolves**: the long-open 0.1.x item, closed by what the control does rather than by a console value. |
+| W3 | Tick three again, **Delete selected**, confirm. | One confirmation naming 3; the progress line; the rows gone after one refresh; "3 records were deleted." |
+| W4 | Tick two, and use the command bar's **Assign** on them. | The ribbon acts on the two (P3 again, through the control's own checkboxes this time). |
+| W5 | Drag the Account name edge wider; reload the page. | The column follows the pointer; after the reload it is still that width, and **Reset column widths** is in the pager. |
+| W6 | The same on the main grid, which is wider than its columns. | The dragged column draws at the dragged width, not a stretched one; the others fill the rest. |
+| W7 | Tab to a column edge, press → three times, then Home. | 48px wider, then back; a screen reader names "Resize Account name" and its width. |
+| W8 | As a user whose roles have no Delete on the table, if one exists. | No **Delete** on the rows, no **Delete selected** — the branch the administrator cannot reach (P1). |
+
+**Still open from 0.1.x, and not changed by 0.2.0:**
+
+- **That `of-type-group` works on a dataset `property-set` in canvas.** If the
+  common reading is right, **Open link** is model-driven only and
+  `docs/canvas.md` is wrong about it. Proving it: bind the role in a canvas app.
+- **That the outputs reach a canvas `OnChange`**, and that `InvokeCount` makes a
+  repeated press fire it. Proving it: two identical presses and a `Notify()`.
+- **That the platform's error dialog shows `details`** as the type
+  documentation describes. A bulk delete with failures puts every failed record
+  there, so W3 with a record that cannot be deleted would show it.
+
+**New with 0.2.0:**
+
+- **A page turn with a selection.** The control clears its own before the fetch,
+  so the answer does not change what it does — but the platform's copy across a
+  page turn was never measured (P3 had one page).
+- **Selection in canvas.** The checkboxes draw and `setSelectedRecordIds` is
+  called; whether a canvas app sees it through `Selected`/`SelectedItems` is
+  unknown, and `docs/canvas.md` says so.
+- **`getViewId` in canvas**, and so which key canvas widths are stored under —
+  the column set is the fallback, and nothing depends on which one it is.
+- **The phone client**: the checkbox column and resizer at a touch width, and
+  whether a touch drag reaches the handle (`touch-action: none` is set for it).
 
 ## Promoting a finding
 
