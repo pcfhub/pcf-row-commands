@@ -197,4 +197,67 @@
   <data name="RowCommands_DeleteFailed" xml:space="preserve">
     <value>{0} を削除できませんでした。</value>
   </data>
+  <data name="ShowSelection_Name" xml:space="preserve">
+    <value>行の選択を表示する</value>
+  </data>
+  <data name="ShowSelection_Desc" xml:space="preserve">
+    <value>各行にチェックボックスを追加します。選択した行はまとめて削除でき、サブグリッドのコマンド バーもその行に対して動作します。既定はオフです。</value>
+  </data>
+  <data name="LockColumnWidths_Name" xml:space="preserve">
+    <value>列幅を固定する</value>
+  </data>
+  <data name="LockColumnWidths_Desc" xml:space="preserve">
+    <value>ユーザーによる列幅の変更を禁止します。既定では、ユーザーは列の端をドラッグでき、その幅はこのブラウザーでこのビューについて記憶されます。</value>
+  </data>
+  <data name="RowCommands_SelectRow" xml:space="preserve">
+    <value>{0} を選択</value>
+  </data>
+  <data name="RowCommands_SelectPage" xml:space="preserve">
+    <value>このページのすべての行を選択</value>
+  </data>
+  <data name="RowCommands_SelectedCount" xml:space="preserve">
+    <value>{0} 件選択</value>
+  </data>
+  <data name="RowCommands_DeleteSelected" xml:space="preserve">
+    <value>選択した行を削除</value>
+  </data>
+  <data name="RowCommands_ClearSelection" xml:space="preserve">
+    <value>選択を解除</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedTitle" xml:space="preserve">
+    <value>{0} 件のレコードを削除しますか?</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedText" xml:space="preserve">
+    <value>{0} 件のレコードが 1 件ずつ完全に削除されます。この操作は元に戻せません。</value>
+  </data>
+  <data name="RowCommands_DeletingProgress" xml:space="preserve">
+    <value>{1} 件中 {0} 件目を削除しています…</value>
+  </data>
+  <data name="RowCommands_DeletingStarted" xml:space="preserve">
+    <value>{0} 件のレコードを削除しています。</value>
+  </data>
+  <data name="RowCommands_Stop" xml:space="preserve">
+    <value>停止</value>
+  </data>
+  <data name="RowCommands_DeletedMany" xml:space="preserve">
+    <value>{0} 件のレコードを削除しました。</value>
+  </data>
+  <data name="RowCommands_DeletedSome" xml:space="preserve">
+    <value>{1} 件中 {0} 件のレコードを削除しました。{2} 件は削除できませんでした。</value>
+  </data>
+  <data name="RowCommands_DeleteStopped" xml:space="preserve">
+    <value>停止しました。{1} 件中 {0} 件のレコードを削除しました。</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedFailed" xml:space="preserve">
+    <value>選択したレコードの一部を削除できませんでした。</value>
+  </data>
+  <data name="RowCommands_ResizeColumn" xml:space="preserve">
+    <value>{0} のサイズを変更</value>
+  </data>
+  <data name="RowCommands_ResetWidths" xml:space="preserve">
+    <value>列幅をリセット</value>
+  </data>
+  <data name="RowCommands_WidthsReset" xml:space="preserve">
+    <value>列幅をリセットしました。</value>
+  </data>
 </root>

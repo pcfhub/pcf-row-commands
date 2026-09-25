@@ -45,11 +45,6 @@
       `StringProperty`, so this costs no cast; what it may cost is canvas, since
       `of-type-group` is commonly read as model-driven only. That is recorded in
       SPEC.md under *Not verified* rather than assumed either way.
-
-      No `cds-data-set-options`: this control never calls
-      `setSelectedRecordIds()`, so the subgrid command bar would be furniture
-      with nothing behind it, and the view selector would let a user swap in a
-      view whose columns the row commands were not configured for.
     -->
     <type-group name="commandUrl">
       <type>SingleLine.URL</type>
@@ -57,11 +52,21 @@
     </type-group>
 
     <!--
-      PROBE 0.1.8 (P2): the command bar, so the probe can ask whether an
-      existing subgrid gains it on upgrade and whether it acts on
-      setSelectedRecordIds. The view selector and quick find stay off: a
-      view the maker did not configure the URL role for is not one a user
-      should be able to swap in.
+      The subgrid's command bar, since 0.2.0 — because the control now calls
+      `setSelectedRecordIds()`, and the bar is what acts on it: Assign, Share,
+      Run flow, the ribbon's own Delete. Measured 2026-09-25 (SPEC.md P3):
+      the ribbon acted on exactly the rows the control selected.
+
+      **It is read from the installed control, not the form.** Measured the
+      same day (P2): an existing subgrid showed the bar straight after the
+      upgrade, with no form publish. So this line changes every subgrid this
+      control is on, and `docs/migration.md` says so. A main grid is
+      unaffected — it has the app's command bar already.
+
+      The view selector and quick find stay off: a view the maker did not
+      configure the URL role for is not one a user should be able to swap in,
+      and a quick find the control cannot see (`getFilter()` never reports
+      one) would page a result set the pager cannot describe.
     -->
     <data-set name="records"
               display-name-key="Records_DataSet_Name"
@@ -136,6 +141,40 @@
               required="false" />
 
     <!--
+      Since 0.2.0: a checkbox column, and a bar over the table while anything
+      is selected — the count, **Delete selected** (under the same conditions
+      as the row's Delete: `showDelete`, a host that can confirm, a role that
+      allows it), and Clear.
+
+      `showX`, and off, by the rule above: a new feature arrives switched off,
+      so an upgraded form draws exactly the columns it drew before. The
+      command bar above the subgrid is the one change an upgrade makes on its
+      own — see the note on `<data-set>`.
+    -->
+    <property name="showSelection"
+              display-name-key="ShowSelection_Name"
+              description-key="ShowSelection_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="false" />
+
+    <!--
+      Since 0.2.0 the user can drag a column's edge, or focus it and press the
+      arrow keys, and the width is remembered for them in this browser, per
+      view. On by default, and named for the unusual choice as `hideOpen` is:
+      a resizer changes nothing until somebody uses it, so an upgraded form
+      looks exactly as it did.
+    -->
+    <property name="lockColumnWidths"
+              display-name-key="LockColumnWidths_Name"
+              description-key="LockColumnWidths_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="false" />
+
+    <!--
       Three outputs, and the third is the one that is easy to leave out.
 
       `invokedRecordId` and `invokedCommand` say what happened. `invokeCount`
@@ -147,6 +186,10 @@
 
       All three are notified *before* the platform call, so a canvas app sees
       the press even on a host where the call itself does nothing.
+
+      Since 0.2.0 `invokedCommand` can also be `deleteSelected`, with
+      `invokedRecordId` the selected ids joined by commas, in page order. Said
+      here because an output's format is permanent once somebody binds it.
     -->
     <property name="invokedRecordId"
               display-name-key="InvokedRecordId_Name"
@@ -186,32 +229,34 @@
     </resources>
 
     <!--
-      One feature, and `required="false"` is the load-bearing half.
+      Two features, and `required="false"` is the load-bearing half of each.
 
       WebAPI is Dataverse-dependent and absent in canvas apps. `required="true"`
       on a host that lacks a feature is **component load failure at runtime** —
       the whole control fails to appear, not the one button — so a control that
       can do something useful without it must declare `false` and feature-detect.
       Here that is exactly the shape: without `context.webAPI` the delete
-      command is not rendered, and open and launch carry on.
+      commands are not rendered, and open and launch carry on.
+
+      **Utility, since 0.2.0, for one call: `utils.hasEntityPrivilege`**, so
+      Delete is not offered to a user whose roles grant it at no depth.
+      Measured 2026-09-25 (SPEC.md P1): the method is published whether or not
+      this is declared, and **every call throws** without it — "Feature
+      'Utility.hasEntityPrivilege' is required to be specified in the
+      <uses-feature> section". It is an install-time prompt that 0.1.x did not
+      ask, and the release notes say what it buys. A host that withholds it
+      keeps 0.1.x's behaviour: Delete offered, the server's refusal shown.
 
       Nothing else is declared. `openDatasetItem()` is a method on the dataset
       and needs no feature; neither does `context.navigation` — pcf-lookup-search
-      calls `openForm` with no declaration at all. `Utility` is not used: this
-      control never resolves entity metadata, because `dataset.getTargetEntityType()`
-      already answers the only question it would ask.
+      calls `openForm` with no declaration at all. Entity metadata is not read:
+      `dataset.getTargetEntityType()` already answers the only question it would
+      ask.
 
       Every entry here is an install-time permission prompt for the customer, so
       the commented-out block the template ships is deleted rather than left in
       place — a commented feature declares nothing, but it invites somebody to
       uncomment the pair rather than the one.
-    -->
-    <!--
-      PROBE 0.1.9 (P1 again): `Utility`, because 0.1.8 measured that
-      `utils.hasEntityPrivilege` is published without it and THROWS at the
-      call — "Feature 'Utility.hasEntityPrivilege' is required to be specified
-      in the <uses-feature> section". The comment above is 0.1.7's and is
-      rewritten with 0.2.0.
     -->
     <feature-usage>
       <uses-feature name="WebAPI" required="false" />

@@ -197,4 +197,67 @@
   <data name="RowCommands_DeleteFailed" xml:space="preserve">
     <value>{0} n’a pas pu être supprimé.</value>
   </data>
+  <data name="ShowSelection_Name" xml:space="preserve">
+    <value>Afficher la sélection des lignes</value>
+  </data>
+  <data name="ShowSelection_Desc" xml:space="preserve">
+    <value>Ajoute une case à cocher à chaque ligne. Les lignes sélectionnées peuvent être supprimées ensemble, et la barre de commandes de la sous-grille agit sur elles. Désactivé par défaut.</value>
+  </data>
+  <data name="LockColumnWidths_Name" xml:space="preserve">
+    <value>Verrouiller la largeur des colonnes</value>
+  </data>
+  <data name="LockColumnWidths_Desc" xml:space="preserve">
+    <value>Empêche les utilisateurs de redimensionner les colonnes. Par défaut, un utilisateur peut faire glisser le bord d’une colonne, et la largeur est mémorisée dans ce navigateur, pour cette vue.</value>
+  </data>
+  <data name="RowCommands_SelectRow" xml:space="preserve">
+    <value>Sélectionner {0}</value>
+  </data>
+  <data name="RowCommands_SelectPage" xml:space="preserve">
+    <value>Sélectionner toutes les lignes de cette page</value>
+  </data>
+  <data name="RowCommands_SelectedCount" xml:space="preserve">
+    <value>{0} sélectionné(s)</value>
+  </data>
+  <data name="RowCommands_DeleteSelected" xml:space="preserve">
+    <value>Supprimer la sélection</value>
+  </data>
+  <data name="RowCommands_ClearSelection" xml:space="preserve">
+    <value>Effacer la sélection</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedTitle" xml:space="preserve">
+    <value>Supprimer {0} enregistrements ?</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedText" xml:space="preserve">
+    <value>{0} enregistrements seront supprimés définitivement, l’un après l’autre. Cette action est irréversible.</value>
+  </data>
+  <data name="RowCommands_DeletingProgress" xml:space="preserve">
+    <value>Suppression de {0} sur {1}…</value>
+  </data>
+  <data name="RowCommands_DeletingStarted" xml:space="preserve">
+    <value>Suppression de {0} enregistrements.</value>
+  </data>
+  <data name="RowCommands_Stop" xml:space="preserve">
+    <value>Arrêter</value>
+  </data>
+  <data name="RowCommands_DeletedMany" xml:space="preserve">
+    <value>{0} enregistrements ont été supprimés.</value>
+  </data>
+  <data name="RowCommands_DeletedSome" xml:space="preserve">
+    <value>{0} enregistrements sur {1} ont été supprimés. {2} n’ont pas pu l’être.</value>
+  </data>
+  <data name="RowCommands_DeleteStopped" xml:space="preserve">
+    <value>Arrêté. {0} enregistrements sur {1} ont été supprimés.</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedFailed" xml:space="preserve">
+    <value>Certains des enregistrements sélectionnés n’ont pas pu être supprimés.</value>
+  </data>
+  <data name="RowCommands_ResizeColumn" xml:space="preserve">
+    <value>Redimensionner {0}</value>
+  </data>
+  <data name="RowCommands_ResetWidths" xml:space="preserve">
+    <value>Réinitialiser la largeur des colonnes</value>
+  </data>
+  <data name="RowCommands_WidthsReset" xml:space="preserve">
+    <value>Largeur des colonnes réinitialisée.</value>
+  </data>
 </root>

@@ -117,6 +117,16 @@ const TEMPLATES = {
     // label is a substring of the accessible name. Marked, the two could not
     // be compared at all. The other twenty-odd keys still prove the resx path.
     RowCommands_Open: 'Open',
+    RowCommands_SelectRow: 'Select {0}',
+    RowCommands_SelectedCount: '{0} selected',
+    RowCommands_DeleteSelectedTitle: 'Delete {0} records?',
+    RowCommands_DeleteSelectedText: '{0} records will be deleted.',
+    RowCommands_DeletingProgress: 'Deleting {0} of {1}',
+    RowCommands_DeletingStarted: 'Deleting {0} records.',
+    RowCommands_DeletedMany: '{0} records were deleted.',
+    RowCommands_DeletedSome: '{0} of {1} deleted; {2} failed.',
+    RowCommands_DeleteStopped: 'Stopped: {0} of {1}.',
+    RowCommands_ResizeColumn: 'Resize {0}',
 };
 
 const speaks = (key) => (TEMPLATES[key] !== undefined ? TEMPLATES[key] : marked(key));
@@ -131,7 +141,7 @@ const speaks = (key) => (TEMPLATES[key] !== undefined ? TEMPLATES[key] : marked(
  * manifest carries, deliberately — `"false"` is truthy, and `asBoolean` in the
  * control is what has to survive it.
  */
-const MANIFEST_DEFAULTS = { hideOpen: 'false', showDelete: 'false' };
+const MANIFEST_DEFAULTS = { hideOpen: 'false', showDelete: 'false', showSelection: 'false', lockColumnWidths: 'false' };
 
 /**
  * Every control bound and not yet destroyed.
@@ -748,6 +758,475 @@ check(
     `${narrow.findAll('.RowCommands-commandLabel').length} labels, ${drawnCommands} commands`,
 );
 
+/* ================================================ the decision modules */
+
+/*
+ * 0.2.0's arithmetic and rules, loaded from source through dev/modules.js
+ * rather than through the bundle: the widths a drag produces, which rows stay
+ * selected, what the roles say, and how a bulk delete runs. The bundle
+ * sections below prove `index.ts` asks these the right questions.
+ */
+const { createLoader } = require('./modules');
+const load = createLoader({
+    root: path.join(root, 'RowCommands'),
+    forbid: [[/(^|\/)index$/, 'the entry point'], [/generated/, 'the manifest types']],
+});
+
+const widths = load('widths');
+const selection = load('selection');
+const privileges = load('privileges');
+const bulk = load('bulk');
+
+{
+    const base = [200, 120, 150, 90, 180];
+    const none = [undefined, undefined, undefined, undefined, undefined];
+    const sum = (list) => list.reduce((total, n) => total + n, 0);
+
+    const unhosted = widths.layout(base, none, 308, 0, 0);
+
+    check(
+        'widths: a host with no width draws every column at its own',
+        unhosted.columns.join() === base.join() && unhosted.table === 1048 && unhosted.commands === 308,
+        JSON.stringify(unhosted),
+    );
+
+    const wide = widths.layout(base, none, 308, 0, 2096);
+
+    check(
+        'widths: a wider host shares the surplus out in proportion, as 0.1.x drew it, and fills it exactly',
+        sum(wide.columns) + wide.commands === 2096 && wide.table === 2096 && wide.commands === 308
+            && Math.abs(wide.columns[0] / wide.columns[1] - 200 / 120) < 0.05,
+        JSON.stringify(wide),
+    );
+
+    const dragged = widths.layout(base, [300, undefined, undefined, undefined, undefined], 308, 0, 2096);
+
+    check(
+        'widths: a dragged column draws at exactly what it was dragged to, and the rest take the surplus',
+        dragged.columns[0] === 300 && sum(dragged.columns) + dragged.commands === 2096,
+        JSON.stringify(dragged),
+    );
+
+    const allDragged = widths.layout(base, [100, 100, 100, 100, 100], 308, 44, 2096);
+
+    check(
+        'widths: with every column dragged, the surplus goes to the command column',
+        allDragged.columns.join() === '100,100,100,100,100' && allDragged.commands === 2096 - 500 - 44,
+        JSON.stringify(allDragged),
+    );
+
+    const narrow = widths.layout(base, none, 308, 44, 600);
+
+    check(
+        'widths: nothing shrinks to fit — a narrow host scrolls',
+        narrow.columns.join() === base.join() && narrow.table === 1048 + 44,
+        JSON.stringify(narrow),
+    );
+
+    check(
+        'widths: a drag is clamped to 64–800',
+        widths.layout(base, [10, 5000, undefined, undefined, undefined], 308, 0, 0).columns.slice(0, 2).join() === '64,800',
+    );
+
+    check(
+        'widths: the maker’s widths, and canvas’s zeros as one fallback each',
+        widths.baseWidths([{ visualSizeFactor: 300 }, { visualSizeFactor: 30 }]).join() === '300,64'
+            && widths.baseWidths([{ visualSizeFactor: 0 }, { visualSizeFactor: 0 }]).join() === '140,140',
+    );
+
+    const cols = [{ name: 'name', visualSizeFactor: 200 }, { name: 'city', visualSizeFactor: 100 }];
+
+    check(
+        'widths: the key is table and view, lower-cased; without a view, the column set',
+        widths.storageKey('account', '50901766-BA1B-46E0-850B-E1A3991ADE2E', cols)
+            === 'pcfhub.rowcommands.widths:account:50901766-ba1b-46e0-850b-e1a3991ade2e'
+            && widths.storageKey('account', null, cols) === 'pcfhub.rowcommands.widths:account:cols:name,city',
+    );
+
+    const store = (value) => ({ getItem: () => value, setItem: () => undefined, removeItem: () => undefined });
+
+    check(
+        'widths: stored widths are kept for columns the view still has, clamped',
+        JSON.stringify(widths.readOverrides(() => store('{"name":250,"gone":300,"city":9999}'), 'k', cols))
+            === '{"name":250,"city":800}',
+    );
+
+    check(
+        'widths: blocked storage, bad JSON and the wrong shape all read as no overrides',
+        JSON.stringify(widths.readOverrides(() => {
+            throw Object.assign(new Error('denied'), { name: 'SecurityError' });
+        }, 'k', cols)) === '{}'
+            && JSON.stringify(widths.readOverrides(() => store('not json'), 'k', cols)) === '{}'
+            && JSON.stringify(widths.readOverrides(() => store('[1,2]'), 'k', cols)) === '{}'
+            && JSON.stringify(widths.readOverrides(() => undefined, 'k', cols)) === '{}',
+    );
+
+    const written = {};
+    const recording = {
+        getItem: () => null,
+        setItem: (key, value) => { written[key] = value; },
+        removeItem: (key) => { written[key] = 'REMOVED'; },
+    };
+
+    widths.writeOverrides(() => recording, 'a', { name: 250 });
+    widths.writeOverrides(() => recording, 'b', {});
+
+    check(
+        'widths: overrides are written as JSON, and none removes the key rather than storing {}',
+        written.a === '{"name":250}' && written.b === 'REMOVED',
+        JSON.stringify(written),
+    );
+
+    check(
+        'widths: a full store is a false, not a throw',
+        widths.writeOverrides(() => ({ setItem: () => { throw new Error('quota'); } }), 'a', { name: 1 }) === false,
+    );
+
+    check(
+        'widths: an arrow is 16, with Shift 64',
+        widths.nudge(200, 1, false) === 216 && widths.nudge(200, -1, true) === 136 && widths.nudge(70, -1, false) === 64,
+    );
+}
+
+{
+    const page = ['a', 'b', 'c'];
+
+    check(
+        'selection: toggle adds and removes',
+        selection.toggle(['a'], 'b').join() === 'a,b' && selection.toggle(['a', 'b'], 'a').join() === 'b',
+    );
+    check(
+        'selection: the header reads none, some or all of the page',
+        selection.pageState([], page) === 'none' && selection.pageState(['b'], page) === 'some'
+            && selection.pageState(['c', 'b', 'a'], page) === 'all',
+    );
+    check(
+        'selection: the header selects the page when any is off, and clears it when all are on',
+        selection.togglePage(['b'], page).join() === 'a,b,c' && selection.togglePage(page, page).length === 0,
+    );
+    check(
+        'selection: pruned to the page, in the page’s order — a row the ribbon deleted drops out',
+        selection.prune(['c', 'x', 'a'], page).join() === 'a,c',
+    );
+}
+
+{
+    const utils = (answer) => ({
+        hasEntityPrivilege: (table, type, depth) => (typeof answer === 'function' ? answer(type, depth) : answer),
+    });
+
+    check(
+        'privileges: any depth allowing Delete is a yes',
+        privileges.canDeleteByRole(utils((type, depth) => type === 4 && depth === 0), 'account') === true,
+    );
+    check(
+        'privileges: no depth allowing it is a no',
+        privileges.canDeleteByRole(utils(false), 'account') === false,
+    );
+    check(
+        'privileges: no utils, a throw (Utility undeclared), or a non-boolean is "cannot say"',
+        privileges.canDeleteByRole(undefined, 'account') === null
+            && privileges.canDeleteByRole({ hasEntityPrivilege: () => { throw new Error('undeclared'); } }, 'account') === null
+            && privileges.canDeleteByRole(utils('yes'), 'account') === null
+            && privileges.canDeleteByRole(utils(true), '') === null,
+    );
+    check('privileges: Delete is 4', privileges.PRIVILEGE_DELETE === 4);
+}
+
+/* ================================================================ selection */
+
+const unselectable = bind({ inputs: { showDelete: true } });
+
+check(
+    'selection is off by default: no checkboxes, and the platform selection is never touched',
+    unselectable.findAll('.RowCommands-select').length === 0
+        && callsLike(unselectable, 'setSelectedRecordIds').length === 0
+        && unselectable.find('.RowCommands-bulk') === null,
+);
+
+const picking = bind({ inputs: { showSelection: true, showDelete: true } });
+const change = (element) => element.dispatchEvent({ type: 'change', target: element });
+const boxes = (view) => view.findAll('.RowCommands-select');
+
+check(
+    'with showSelection, a checkbox heads the table and one starts each row',
+    boxes(picking).length === rowsOf(picking).length + 1
+        && boxes(picking)[1].getAttribute('aria-label') === 'Select Fabrikam Manufacturing',
+    `${boxes(picking).length} boxes, ${rowsOf(picking).length} rows`,
+);
+
+change(boxes(picking)[1]);
+
+check(
+    'ticking a row hands it to the platform — the command bar’s contract',
+    callsLike(picking, 'setSelectedRecordIds').length === 1
+        && JSON.stringify(picking.handle.dataset.getSelectedRecordIds()) === '["a01"]',
+    callsLike(picking, 'setSelectedRecordIds').join(' | '),
+);
+
+check(
+    'and the bar says how many, with Delete selected and Clear',
+    picking.find('.RowCommands-bulkText')?.textContent === '1 selected'
+        && picking.find('.RowCommands-bulkDelete') !== null
+        && rowsOf(picking)[0].className === 'is-selected',
+);
+
+change(boxes(picking)[0]);
+
+check(
+    'the header checkbox selects the whole page when any row is off',
+    picking.handle.dataset.getSelectedRecordIds().length === rowsOf(picking).length
+        && boxes(picking)[0].checked === true && boxes(picking)[0].indeterminate === false,
+);
+
+change(boxes(picking)[0]);
+
+check(
+    'and clears it when all are on',
+    picking.handle.dataset.getSelectedRecordIds().length === 0 && picking.find('.RowCommands-bulk') === null,
+);
+
+change(boxes(picking)[2]);
+
+check(
+    'one row of several leaves the header indeterminate',
+    boxes(picking)[0].indeterminate === true && boxes(picking)[0].checked === false,
+);
+
+press(picking.find('.RowCommands-next'));
+
+check(
+    'a page turn clears the selection before the page arrives, so the command bar never acts on rows leaving the screen',
+    picking.handle.dataset.getSelectedRecordIds().length === 0,
+    JSON.stringify(picking.handle.dataset.getSelectedRecordIds()),
+);
+
+picking.settle();
+
+check(
+    'and the new page starts with none selected',
+    picking.handle.dataset.getSelectedRecordIds().length === 0 && picking.find('.RowCommands-bulk') === null,
+    JSON.stringify(picking.handle.dataset.getSelectedRecordIds()),
+);
+
+{
+    // A row the ribbon deletes leaves the next fetch; the selection follows it.
+    const ribbon = bind({ inputs: { showSelection: true } });
+
+    change(boxes(ribbon)[1]);
+    change(boxes(ribbon)[2]);
+    void ribbon.handle.context.webAPI.deleteRecord('account', 'a02');
+    ribbon.handle.dataset.refresh();
+    ribbon.settle();
+
+    check(
+        'a selected row deleted from elsewhere drops out of the selection on the next render',
+        JSON.stringify(ribbon.handle.dataset.getSelectedRecordIds()) === '["a01"]'
+            && ribbon.find('.RowCommands-bulkText')?.textContent === '1 selected',
+        JSON.stringify(ribbon.handle.dataset.getSelectedRecordIds()),
+    );
+}
+
+/* ============================================================ who may delete */
+
+const barred = bind({ inputs: { showSelection: true, showDelete: true }, hasPrivilege: (type) => type !== 4 });
+
+change(boxes(barred)[1]);
+
+check(
+    'a user whose roles allow Delete at no depth gets neither Delete',
+    commandOn(barred, 0, 'delete') === null && barred.find('.RowCommands-bulkDelete') === null,
+);
+
+check(
+    'having asked about Delete — 4 — at each depth',
+    [0, 1, 2, 3].every((depth) => barred.calls().includes(
+        `utils.hasEntityPrivilege({"entityTypeName":"account","privilegeType":4,"privilegeDepth":${depth}})`,
+    )),
+);
+
+const cannotSay = bind({ inputs: { showDelete: true }, utilityDeclared: false });
+
+check(
+    'a host where the question throws — Utility undeclared, measured — keeps 0.1.x: Delete offered',
+    commandOn(cannotSay, 0, 'delete') !== null,
+);
+
+const allowed = bind({ inputs: { showDelete: true }, hasPrivilege: (type, depth) => type === 4 && depth === 0 });
+
+check('owner-only Delete is still a Delete', commandOn(allowed, 0, 'delete') !== null);
+
+/* ================================================================== resizing */
+
+const key = (name) => ({ type: 'keydown', key: name, shiftKey: false, preventDefault() {} });
+const dataHeaders = (view) => view.findAll('th').filter((th) => !th.className.includes('RowCommands-commandsHeader'));
+const widthOf = (th) => Number.parseInt(th.style.width, 10);
+
+const sizing = bind({});
+const handles = sizing.findAll('.RowCommands-resizer');
+
+check(
+    'every data column has a resizer, and the command column has none',
+    handles.length === dataHeaders(sizing).length && handles.length === 5
+        && sizing.find('.RowCommands-commandsHeader').querySelector('.RowCommands-resizer') === null,
+    `${handles.length} resizers`,
+);
+
+check(
+    'a resizer is a focusable separator carrying its width',
+    handles[0].getAttribute('role') === 'separator' && handles[0].getAttribute('aria-orientation') === 'vertical'
+        && handles[0].tabIndex === 0 && handles[0].getAttribute('aria-valuenow') === '200'
+        && handles[0].getAttribute('aria-label') === 'Resize Account name',
+);
+
+check(
+    'with no host width and nothing dragged, the maker’s widths — 0.1.x’s table',
+    dataHeaders(sizing).map(widthOf).join() === '200,120,150,90,180',
+    dataHeaders(sizing).map(widthOf).join(),
+);
+
+handles[0].dispatchEvent(key('ArrowRight'));
+
+const stored = () => sizing.handle.storageData()['pcfhub.rowcommands.widths:account:cols:name,accountnumber,primarycontactname,statecode,websiteurl'];
+
+check(
+    'the right arrow widens the column by 16 and remembers it for this view',
+    widthOf(dataHeaders(sizing)[0]) === 216 && handles[0].getAttribute('aria-valuenow') === '216'
+        && stored() === '{"name":216}',
+    `${widthOf(dataHeaders(sizing)[0])}, stored ${stored()}`,
+);
+
+check(
+    'without rebuilding the table, so the handle keeps focus',
+    sizing.findAll('.RowCommands-resizer')[0] === handles[0],
+);
+
+handles[0].dispatchEvent({ ...key('ArrowLeft'), shiftKey: true });
+
+check('Shift and the left arrow narrow it by 64', widthOf(dataHeaders(sizing)[0]) === 152);
+
+sizing.settle();
+
+check(
+    'a reset button appears in the pager while anything is resized',
+    sizing.find('.RowCommands-resetWidths') !== null,
+);
+
+{
+    const reloaded = bind({ storageData: sizing.handle.storageData() });
+
+    check(
+        'a later mount on the same browser draws the stored width',
+        widthOf(dataHeaders(reloaded)[0]) === 152,
+        String(widthOf(dataHeaders(reloaded)[0])),
+    );
+
+    press(reloaded.find('.RowCommands-resetWidths'));
+
+    check(
+        'Reset puts the maker’s widths back and forgets the stored ones',
+        widthOf(dataHeaders(reloaded)[0]) === 200 && reloaded.find('.RowCommands-resetWidths') === null
+            && Object.keys(reloaded.handle.storageData()).length === 0,
+    );
+}
+
+sizing.findAll('.RowCommands-resizer')[0].dispatchEvent(key('Home'));
+
+check(
+    'Home on a resizer gives that column its own width back',
+    widthOf(dataHeaders(sizing)[0]) === 200 && stored() === undefined,
+);
+
+{
+    const dragging = bind({});
+    const handle = dragging.findAll('.RowCommands-resizer')[1];
+    const th = dataHeaders(dragging)[1];
+    const pointer = (type, clientX) => ({ type, button: 0, clientX, pointerId: 7, preventDefault() {} });
+
+    handle.dispatchEvent(pointer('pointerdown', 400));
+    handle.dispatchEvent(pointer('pointermove', 470));
+
+    check('a drag follows the pointer', widthOf(th) === 190, String(widthOf(th)));
+
+    // An updateView arriving mid-drag: the host re-reads, the platform
+    // repaints. The table must not be rebuilt under the pointer.
+    dragging.handle.setInput('hideOpen', 'true');
+    dragging.settle();
+
+    check(
+        'an updateView during the drag rebuilds nothing — the header under the pointer is the same element',
+        dataHeaders(dragging)[1] === th && widthOf(th) === 190,
+    );
+
+    handle.dispatchEvent(pointer('pointermove', 1500));
+
+    check('a drag stops at 800', widthOf(th) === 800);
+
+    handle.dispatchEvent(pointer('pointerup', 1500));
+
+    check(
+        'the release stores the width, and pays the render that was owed',
+        Object.values(dragging.handle.storageData())[0] === '{"accountnumber":800}'
+            && dataHeaders(dragging)[1] !== th
+            && dragging.find('.RowCommands-command--open') === null,
+        JSON.stringify(dragging.handle.storageData()),
+    );
+
+    handle.dispatchEvent(pointer('pointerup', 1500));
+
+    check('a second release is ignored', Object.keys(dragging.handle.storageData()).length === 1);
+}
+
+{
+    const clicked = bind({});
+    const handle = clicked.findAll('.RowCommands-resizer')[0];
+
+    handle.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 300, pointerId: 1, preventDefault() {} });
+    handle.dispatchEvent({ type: 'pointerup', button: 0, clientX: 300, pointerId: 1, preventDefault() {} });
+
+    check('a press that never moves stores nothing', Object.keys(clicked.handle.storageData()).length === 0);
+}
+
+{
+    const wide = bind({ width: 2096 });
+
+    check(
+        'on a host wider than the columns, they share the width and the table fills it exactly',
+        wide.find('table').style.width === '2096px'
+            && dataHeaders(wide).map(widthOf).reduce((a, b) => a + b, 0) + widthOf(wide.find('.RowCommands-commandsHeader')) === 2096,
+        wide.find('table').style.width,
+    );
+
+    wide.findAll('.RowCommands-resizer')[0].dispatchEvent(key('ArrowRight'));
+
+    check(
+        'and a column resized there draws at its own number, not a stretched one',
+        widthOf(dataHeaders(wide)[0]) === widths.nudge(widths.layout([200, 120, 150, 90, 180], [undefined, undefined, undefined, undefined, undefined], 308, 0, 2096).columns[0], 1, false),
+        String(widthOf(dataHeaders(wide)[0])),
+    );
+}
+
+for (const mode of ['throws', 'full', 'absent']) {
+    const refused = bind({ storage: mode });
+    const handle = refused.findAll('.RowCommands-resizer')[0];
+
+    handle.dispatchEvent(key('ArrowRight'));
+
+    check(
+        `storage "${mode}": the table still renders and the resize still works for this session`,
+        rowsOf(refused).length > 0 && widthOf(dataHeaders(refused)[0]) === 216,
+    );
+}
+
+const locked = bind({ inputs: { lockColumnWidths: true }, storageData: { 'pcfhub.rowcommands.widths:account:cols:name,accountnumber,primarycontactname,statecode,websiteurl': '{"name":400}' } });
+
+check(
+    'lockColumnWidths draws the maker’s widths whatever was stored, with no resizer and no reset',
+    locked.findAll('.RowCommands-resizer').length === 0 && widthOf(dataHeaders(locked)[0]) === 200
+        && locked.find('.RowCommands-resetWidths') === null,
+    String(widthOf(dataHeaders(locked)[0])),
+);
+
 /* ====================================================== the delete itself */
 
 (async () => {
@@ -1018,6 +1497,209 @@ check(
         hiding.find('.RowCommands-status').textContent === '' && rowsOf(hiding).length === 0,
         `status "${hiding.find('.RowCommands-status').textContent}", ${rowsOf(hiding).length} rows`,
     );
+
+    /* ------------------------------------------------ a bulk delete */
+
+    {
+        const results = [];
+        const order = [];
+        const run = await bulk.runSequential(
+            [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }],
+            (id) => {
+                order.push(id);
+                return id === 'b' ? Promise.reject({ errorCode: 1, message: 'cascade' }) : Promise.resolve();
+            },
+            { shouldStop: () => false, onProgress: (done, total) => results.push(`${done}/${total}`), describe: (e) => e.message },
+        );
+
+        check(
+            'bulk: one at a time, in order, a failure halfway recorded and the rest still run',
+            order.join() === 'a,b,c' && run.deleted.map((item) => item.id).join() === 'a,c'
+                && run.failed.length === 1 && run.failed[0].label === 'B' && run.failed[0].detail === 'cascade'
+                && results.join() === '1/3,2/3,3/3' && run.stopped === false,
+            JSON.stringify(run),
+        );
+
+        let stop = false;
+        const halted = await bulk.runSequential(
+            [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }],
+            () => {
+                stop = true;
+                return Promise.resolve();
+            },
+            { shouldStop: () => stop, onProgress: () => undefined, describe: String },
+        );
+
+        check(
+            'bulk: a Stop lets the record in flight finish and starts no other',
+            halted.deleted.length === 1 && halted.stopped === true && halted.remaining === 2,
+            JSON.stringify(halted),
+        );
+
+        const thrown = await bulk.runSequential(
+            [{ id: 'a', label: 'A' }],
+            () => {
+                throw new Error('sync');
+            },
+            { shouldStop: () => false, onProgress: () => undefined, describe: (e) => e.message },
+        );
+
+        check('bulk: a remove that throws is a failed record, not a rejected run', thrown.failed[0].detail === 'sync');
+    }
+
+    const selectRows = (view, count) => {
+        for (let index = 1; index <= count; index += 1) {
+            view.findAll('.RowCommands-select')[index].dispatchEvent({ type: 'change' });
+        }
+    };
+
+    {
+        const one = bind({ inputs: { showSelection: true, showDelete: true } });
+
+        selectRows(one, 1);
+        press(one.find('.RowCommands-bulkDelete'));
+        await settled();
+
+        check(
+            'one selected row goes the row’s own way, with its own sentence',
+            callsLike(one, 'navigation.openConfirmDialog').join() === 'navigation.openConfirmDialog("Fabrikam Manufacturing will be deleted permanently.")',
+            callsLike(one, 'navigation.openConfirmDialog').join(),
+        );
+    }
+
+    {
+        const declined = bind({ inputs: { showSelection: true, showDelete: true }, dialogs: 'cancelled' });
+
+        selectRows(declined, 3);
+        press(declined.find('.RowCommands-bulkDelete'));
+        await settled();
+
+        check(
+            'the confirmation names the count, and a cancel deletes nothing',
+            callsLike(declined, 'navigation.openConfirmDialog').join() === 'navigation.openConfirmDialog("3 records will be deleted.")'
+                && callsLike(declined, 'webAPI.deleteRecord').length === 0
+                && declined.outputs().invokeCount === 0
+                && declined.handle.dataset.getSelectedRecordIds().length === 3,
+            declined.calls().join(' | '),
+        );
+    }
+
+    {
+        const sweeping = bind({ inputs: { showSelection: true, showDelete: true } });
+
+        selectRows(sweeping, 3);
+
+        const refreshesBefore = callsLike(sweeping, 'refresh').length;
+
+        press(sweeping.find('.RowCommands-bulkDelete'));
+
+        for (let i = 0; i < 6; i += 1) {
+            await settled();
+        }
+
+        sweeping.settle();
+
+        check(
+            'confirmed, the three are deleted one after another, in page order',
+            callsLike(sweeping, 'webAPI.deleteRecord').join() === 'webAPI.deleteRecord("account a01"),webAPI.deleteRecord("account a02"),webAPI.deleteRecord("account a03")',
+            callsLike(sweeping, 'webAPI.deleteRecord').join(),
+        );
+
+        check(
+            'with one refresh at the end, not one per record',
+            callsLike(sweeping, 'refresh').length - refreshesBefore === 1,
+            `${callsLike(sweeping, 'refresh').length - refreshesBefore} refreshes`,
+        );
+
+        check(
+            'reported as deleteSelected with the ids, after the confirmation',
+            sweeping.outputs().invokedCommand === 'deleteSelected' && sweeping.outputs().invokedRecordId === 'a01,a02,a03',
+            JSON.stringify(sweeping.outputs()),
+        );
+
+        check(
+            'and the selection, the bar and the rows are gone afterwards, with a summary said',
+            sweeping.handle.dataset.getSelectedRecordIds().length === 0 && sweeping.find('.RowCommands-bulk') === null
+                && !rowsOf(sweeping).some((row) => row.textContent.includes('Fabrikam'))
+                && sweeping.find('.RowCommands-status').textContent === '3 records were deleted.',
+            sweeping.find('.RowCommands-status').textContent,
+        );
+    }
+
+    {
+        const refusing = bind({ inputs: { showSelection: true, showDelete: true }, webApiFails: true });
+
+        selectRows(refusing, 2);
+        press(refusing.find('.RowCommands-bulkDelete'));
+
+        for (let i = 0; i < 6; i += 1) {
+            await settled();
+        }
+
+        const dialog = callsLike(refusing, 'navigation.openErrorDialog')[0] || '';
+
+        check(
+            'when records fail, the summary says how many, and the error dialog names each one',
+            refusing.find('.RowCommands-status').textContent === '0 of 2 deleted; 2 failed.'
+                && dialog.includes('Fabrikam Manufacturing: ') && dialog.includes('Contoso Logistics: ')
+                && !dialog.includes('[object Object]') && !dialog.includes('undefined'),
+            `${refusing.find('.RowCommands-status').textContent} | ${dialog}`,
+        );
+
+        check(
+            'and the records that failed stay selected, for a second try',
+            refusing.handle.dataset.getSelectedRecordIds().length === 2,
+        );
+    }
+
+    {
+        const leaving = bind({ inputs: { showSelection: true, showDelete: true } });
+
+        selectRows(leaving, 3);
+        press(leaving.find('.RowCommands-bulkDelete'));
+        leaving.destroy();
+
+        for (let i = 0; i < 6; i += 1) {
+            await settled();
+        }
+
+        check(
+            'torn down before the confirmation answers, nothing is deleted',
+            callsLike(leaving, 'webAPI.deleteRecord').length === 0,
+            callsLike(leaving, 'webAPI.deleteRecord').join(),
+        );
+    }
+
+    {
+        // Torn down *during* the run — a form tab switch halfway through.
+        // The first record's delete is where the rig tears the control down.
+        const midway = bind({ inputs: { showSelection: true, showDelete: true } });
+
+        selectRows(midway, 3);
+
+        const api = midway.instance.latest.context.webAPI;
+        const deleteRecord = api.deleteRecord;
+
+        api.deleteRecord = (...args) => {
+            const answer = deleteRecord.apply(api, args);
+
+            midway.destroy();
+
+            return answer;
+        };
+
+        press(midway.find('.RowCommands-bulkDelete'));
+
+        for (let i = 0; i < 6; i += 1) {
+            await settled();
+        }
+
+        check(
+            'torn down during the run, it stops at the record in flight',
+            callsLike(midway, 'webAPI.deleteRecord').length === 1,
+            callsLike(midway, 'webAPI.deleteRecord').join(),
+        );
+    }
 
     /* ---------------------------------------------------------- teardown */
 

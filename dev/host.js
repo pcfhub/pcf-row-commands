@@ -235,6 +235,25 @@
         RowCommands_RangeStatus: "{0}–{1} of {2}",
         RowCommands_SortBy: "Sort by {0}",
         RowCommands_Untitled: "this record",
+        RowCommands_ClearSelection: "Clear selection",
+        RowCommands_DeleteSelected: "Delete selected",
+        RowCommands_DeleteSelectedFailed: "Some of the selected records could not be deleted.",
+        RowCommands_DeleteSelectedText: "{0} records will be deleted permanently, one after another. This cannot be undone.",
+        RowCommands_DeleteSelectedTitle: "Delete {0} records?",
+        RowCommands_DeleteStopped: "Stopped. {0} of {1} records were deleted.",
+        RowCommands_DeletedMany: "{0} records were deleted.",
+        RowCommands_DeletedSome: "{0} of {1} records were deleted. {2} could not be.",
+        RowCommands_DeletingProgress: "Deleting {0} of {1}…",
+        RowCommands_DeletingStarted: "Deleting {0} records.",
+        RowCommands_Desc: "Open a record, launch a URL, or delete it with a confirm, from the row itself.",
+        RowCommands_Name: "Row Commands",
+        RowCommands_ResetWidths: "Reset column widths",
+        RowCommands_ResizeColumn: "Resize {0}",
+        RowCommands_SelectPage: "Select every row on this page",
+        RowCommands_SelectRow: "Select {0}",
+        RowCommands_SelectedCount: "{0} selected",
+        RowCommands_Stop: "Stop",
+        RowCommands_WidthsReset: "Column widths reset.",
     };
 
     var HOSTS = {
@@ -375,8 +394,10 @@
          * savedEntityReference: null }`**, not `[]` and not a rejection. The
          * dismissal is the default here because it is the branch a control
          * forgets, and `null` rather than `[]` because a reader written as
-         * `saved[0]` throws on it. An ordinary (non-quick-create) form
-         * resolves with an empty array.
+         * `saved[0]` throws on it. **An ordinary form resolves on
+         * navigation, not on close** — 309 ms after the call, measured
+         * 2026-09-25 (pcf-row-commands P7) — with `savedEntityReference`
+         * holding the record it opened. This note used to say an empty array.
          */
         openFormReturns: { savedEntityReference: null },
 
@@ -528,6 +549,18 @@
         hasPrivilege: true,
 
         /**
+         * Whether the manifest declares `<uses-feature name="Utility">`.
+         *
+         * **`hasEntityPrivilege` is published either way and throws when it
+         * is not declared** — measured on a model-driven main grid
+         * 2026-09-25 (pcf-row-commands P1): `typeof` answers `"function"`,
+         * and every call throws *Feature 'Utility.hasEntityPrivilege' is required to be specified in the <uses-feature> section in ControlManifest.xml before use.*
+         * So presence is not permission, and the rig cannot read the
+         * manifest: a suite passes what the manifest says.
+         */
+        utilityDeclared: true,
+
+        /**
          * What `localStorage` is while this host's context is the latest one
          * handed out.
          *
@@ -598,14 +631,16 @@
             previousPageStuck: true,
             /**
              * A fetch clears the platform's selection, so
-             * `getSelectedRecordIds()` answers `[]` after every `refresh()`
-             * and page turn. **Unmeasured**: `pcf-data-table`'s SPEC states
-             * it without a measurement behind it. Defaulted on because it is
-             * the direction that breaks a control trusting the platform's copy
-             * rather than keeping its own; turn it off to model a host that
-             * keeps the ids.
+             * `getSelectedRecordIds()` answers `[]` after it.
+             *
+             * **Off, because the platform kept it**: measured on a subgrid
+             * 2026-09-25 (pcf-row-commands P3), a ribbon Assign on three
+             * selected rows refreshed the subgrid and the next `updateView`
+             * still answered all three. `pcf-data-table`'s SPEC had said the
+             * opposite with no measurement behind it. A page turn with a
+             * selection is still unmeasured, and this is the switch for it.
              */
-            selectionDropsOnFetch: true,
+            selectionDropsOnFetch: false,
             /** `totalResultCount` is -1 — common on large views. */
             uncounted: false,
             /**
@@ -2927,6 +2962,10 @@
                                 privilegeType: privilegeType,
                                 privilegeDepth: privilegeDepth,
                             });
+
+                            if (!o.utilityDeclared) {
+                                throw new Error("Feature 'Utility.hasEntityPrivilege' is required to be specified in the <uses-feature> section in ControlManifest.xml before use.");
+                            }
 
                             if (o.hasPrivilege === 'throws') {
                                 throw new Error('hasEntityPrivilege: refused by the rig.');

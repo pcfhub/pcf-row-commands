@@ -332,8 +332,29 @@
             </label>
 
             <label>
+                The user's privileges
+                <select id="harness-privilege">
+                    <option value="all">Everything (an administrator)</option>
+                    <option value="nodelete">No Delete at any depth</option>
+                    <option value="undeclared">Utility not declared (the call throws)</option>
+                </select>
+                <span>What <code>utils.hasEntityPrivilege</code> answers. A throw
+                is "cannot say", and keeps 0.1.x's Delete.</span>
+            </label>
+
+            <label>
+                localStorage
+                <select id="harness-storage">
+                    <option value="working">This browser's own (widths survive a reload)</option>
+                    <option value="throws">Reading it throws (blocked site data)</option>
+                    <option value="full">Full (writes throw)</option>
+                    <option value="absent">Absent</option>
+                </select>
+            </label>
+
+            <label>
                 Input properties
-                <textarea id="harness-inputs" rows="3" spellcheck="false">{ "hideOpen": "false", "showDelete": "false" }</textarea>
+                <textarea id="harness-inputs" rows="3" spellcheck="false">{ "hideOpen": "false", "showDelete": "true", "showSelection": "true", "lockColumnWidths": "false" }</textarea>
                 <span><strong>This control's own manifest defaults</strong>, as
                 the raw XML <em>strings</em> the platform hands over — which is
                 why <code>"false"</code> is quoted, and why every Yes/No is read

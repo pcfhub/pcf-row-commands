@@ -197,4 +197,67 @@
   <data name="RowCommands_DeleteFailed" xml:space="preserve">
     <value>{0} konnte nicht gelöscht werden.</value>
   </data>
+  <data name="ShowSelection_Name" xml:space="preserve">
+    <value>Zeilenauswahl anzeigen</value>
+  </data>
+  <data name="ShowSelection_Desc" xml:space="preserve">
+    <value>Fügt jeder Zeile ein Kontrollkästchen hinzu. Die ausgewählten Zeilen können gemeinsam gelöscht werden, und die Befehlsleiste des Unterrasters wirkt auf sie. Standardmäßig aus.</value>
+  </data>
+  <data name="LockColumnWidths_Name" xml:space="preserve">
+    <value>Spaltenbreiten sperren</value>
+  </data>
+  <data name="LockColumnWidths_Desc" xml:space="preserve">
+    <value>Verhindert, dass Benutzer die Spaltenbreite ändern. Standardmäßig kann ein Benutzer den Rand einer Spalte ziehen, und die Breite wird in diesem Browser für diese Ansicht gespeichert.</value>
+  </data>
+  <data name="RowCommands_SelectRow" xml:space="preserve">
+    <value>{0} auswählen</value>
+  </data>
+  <data name="RowCommands_SelectPage" xml:space="preserve">
+    <value>Alle Zeilen auf dieser Seite auswählen</value>
+  </data>
+  <data name="RowCommands_SelectedCount" xml:space="preserve">
+    <value>{0} ausgewählt</value>
+  </data>
+  <data name="RowCommands_DeleteSelected" xml:space="preserve">
+    <value>Auswahl löschen</value>
+  </data>
+  <data name="RowCommands_ClearSelection" xml:space="preserve">
+    <value>Auswahl aufheben</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedTitle" xml:space="preserve">
+    <value>{0} Datensätze löschen?</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedText" xml:space="preserve">
+    <value>{0} Datensätze werden nacheinander endgültig gelöscht. Dies kann nicht rückgängig gemacht werden.</value>
+  </data>
+  <data name="RowCommands_DeletingProgress" xml:space="preserve">
+    <value>{0} von {1} wird gelöscht …</value>
+  </data>
+  <data name="RowCommands_DeletingStarted" xml:space="preserve">
+    <value>{0} Datensätze werden gelöscht.</value>
+  </data>
+  <data name="RowCommands_Stop" xml:space="preserve">
+    <value>Anhalten</value>
+  </data>
+  <data name="RowCommands_DeletedMany" xml:space="preserve">
+    <value>{0} Datensätze wurden gelöscht.</value>
+  </data>
+  <data name="RowCommands_DeletedSome" xml:space="preserve">
+    <value>{0} von {1} Datensätzen wurden gelöscht. {2} konnten nicht gelöscht werden.</value>
+  </data>
+  <data name="RowCommands_DeleteStopped" xml:space="preserve">
+    <value>Angehalten. {0} von {1} Datensätzen wurden gelöscht.</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedFailed" xml:space="preserve">
+    <value>Einige der ausgewählten Datensätze konnten nicht gelöscht werden.</value>
+  </data>
+  <data name="RowCommands_ResizeColumn" xml:space="preserve">
+    <value>Größe von {0} ändern</value>
+  </data>
+  <data name="RowCommands_ResetWidths" xml:space="preserve">
+    <value>Spaltenbreiten zurücksetzen</value>
+  </data>
+  <data name="RowCommands_WidthsReset" xml:space="preserve">
+    <value>Spaltenbreiten wurden zurückgesetzt.</value>
+  </data>
 </root>

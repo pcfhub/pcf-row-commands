@@ -197,4 +197,67 @@
   <data name="RowCommands_DeleteFailed" xml:space="preserve">
     <value>No se pudo eliminar {0}.</value>
   </data>
+  <data name="ShowSelection_Name" xml:space="preserve">
+    <value>Mostrar la selección de filas</value>
+  </data>
+  <data name="ShowSelection_Desc" xml:space="preserve">
+    <value>Agrega una casilla a cada fila. Las filas seleccionadas se pueden eliminar juntas y la barra de comandos de la subcuadrícula actúa sobre ellas. Desactivado de forma predeterminada.</value>
+  </data>
+  <data name="LockColumnWidths_Name" xml:space="preserve">
+    <value>Bloquear el ancho de las columnas</value>
+  </data>
+  <data name="LockColumnWidths_Desc" xml:space="preserve">
+    <value>Impide que los usuarios cambien el tamaño de las columnas. De forma predeterminada, un usuario puede arrastrar el borde de una columna y el ancho se recuerda en este explorador, para esta vista.</value>
+  </data>
+  <data name="RowCommands_SelectRow" xml:space="preserve">
+    <value>Seleccionar {0}</value>
+  </data>
+  <data name="RowCommands_SelectPage" xml:space="preserve">
+    <value>Seleccionar todas las filas de esta página</value>
+  </data>
+  <data name="RowCommands_SelectedCount" xml:space="preserve">
+    <value>{0} seleccionados</value>
+  </data>
+  <data name="RowCommands_DeleteSelected" xml:space="preserve">
+    <value>Eliminar seleccionados</value>
+  </data>
+  <data name="RowCommands_ClearSelection" xml:space="preserve">
+    <value>Borrar selección</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedTitle" xml:space="preserve">
+    <value>¿Eliminar {0} registros?</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedText" xml:space="preserve">
+    <value>Se eliminarán {0} registros de forma permanente, uno tras otro. Esta acción no se puede deshacer.</value>
+  </data>
+  <data name="RowCommands_DeletingProgress" xml:space="preserve">
+    <value>Eliminando {0} de {1}…</value>
+  </data>
+  <data name="RowCommands_DeletingStarted" xml:space="preserve">
+    <value>Eliminando {0} registros.</value>
+  </data>
+  <data name="RowCommands_Stop" xml:space="preserve">
+    <value>Detener</value>
+  </data>
+  <data name="RowCommands_DeletedMany" xml:space="preserve">
+    <value>Se eliminaron {0} registros.</value>
+  </data>
+  <data name="RowCommands_DeletedSome" xml:space="preserve">
+    <value>Se eliminaron {0} de {1} registros. {2} no se pudieron eliminar.</value>
+  </data>
+  <data name="RowCommands_DeleteStopped" xml:space="preserve">
+    <value>Detenido. Se eliminaron {0} de {1} registros.</value>
+  </data>
+  <data name="RowCommands_DeleteSelectedFailed" xml:space="preserve">
+    <value>Algunos de los registros seleccionados no se pudieron eliminar.</value>
+  </data>
+  <data name="RowCommands_ResizeColumn" xml:space="preserve">
+    <value>Cambiar el tamaño de {0}</value>
+  </data>
+  <data name="RowCommands_ResetWidths" xml:space="preserve">
+    <value>Restablecer el ancho de las columnas</value>
+  </data>
+  <data name="RowCommands_WidthsReset" xml:space="preserve">
+    <value>Se restableció el ancho de las columnas.</value>
+  </data>
 </root>

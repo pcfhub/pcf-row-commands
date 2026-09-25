@@ -41,6 +41,8 @@
     --RowCommands-background-hover: var(--colorNeutralBackground1Hover, #f5f5f5);
     --RowCommands-background-pressed: var(--colorNeutralBackground1Pressed, #e0e0e0);
     --RowCommands-row-hover: var(--colorSubtleBackgroundHover, #f5f5f5);
+    --RowCommands-row-selected: var(--colorSubtleBackgroundSelected, #ebebeb);
+    --RowCommands-brand: var(--colorCompoundBrandStroke, #0f6cbd);
     --RowCommands-stroke: var(--colorNeutralStroke1, #d1d1d1);
     --RowCommands-stroke-hover: var(--colorNeutralStroke1Hover, #c7c7c7);
     --RowCommands-stroke-subtle: var(--colorNeutralStroke2, #e0e0e0);
@@ -104,6 +106,8 @@
     --RowCommands-background-hover: var(--colorNeutralBackground1Hover, #3d3d3d);
     --RowCommands-background-pressed: var(--colorNeutralBackground1Pressed, #1f1f1f);
     --RowCommands-row-hover: var(--colorSubtleBackgroundHover, #383838);
+    --RowCommands-row-selected: var(--colorSubtleBackgroundSelected, #333333);
+    --RowCommands-brand: var(--colorCompoundBrandStroke, #479ef5);
     --RowCommands-stroke: var(--colorNeutralStroke1, #666666);
     --RowCommands-stroke-hover: var(--colorNeutralStroke1Hover, #757575);
     --RowCommands-stroke-subtle: var(--colorNeutralStroke2, #525252);
@@ -116,6 +120,14 @@
     --RowCommands-success-stroke: var(--colorPaletteGreenBorder1, #237c23);
     --RowCommands-danger-background: var(--colorPaletteRedBackground1, #3b1113);
     --RowCommands-danger-stroke: var(--colorPaletteRedBorder1, #8b2b30);
+
+    /*
+      The browser's own controls — the selection checkboxes, the scrollbars —
+      draw light unless told the surface is dark, and an unticked checkbox on
+      a dark table is a row of white squares. Found by looking at the dark
+      screenshot; nothing else would have.
+    */
+    color-scheme: dark;
 }
 
 .RowCommands-message {
@@ -572,7 +584,9 @@
 */
 .RowCommands-sort:focus-visible,
 .RowCommands-command:focus-visible,
-.RowCommands-pager button:focus-visible {
+.RowCommands-pager button:focus-visible,
+.RowCommands-bulkButton:focus-visible,
+.RowCommands-select:focus-visible {
     outline: 2px solid var(--RowCommands-focus-outer);
     outline-offset: 1px;
     box-shadow: 0 0 0 4px var(--RowCommands-focus-inner);
@@ -639,7 +653,8 @@
     transform: scaleX(-1);
 }
 
-.RowCommands-pager button {
+.RowCommands-pager button,
+.RowCommands-bulkButton {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -661,12 +676,14 @@
         color var(--RowCommands-duration) var(--RowCommands-curve);
 }
 
-.RowCommands-pager button:hover {
+.RowCommands-pager button:hover,
+.RowCommands-bulkButton:hover {
     background-color: var(--RowCommands-background-hover);
     border-color: var(--RowCommands-stroke-hover);
 }
 
-.RowCommands-pager button:active {
+.RowCommands-pager button:active,
+.RowCommands-bulkButton:active {
     background-color: var(--RowCommands-background-pressed);
 }
 
@@ -677,7 +694,9 @@
   leave it there.
 */
 .RowCommands-pager button:disabled,
-.RowCommands-pager button:disabled:hover {
+.RowCommands-pager button:disabled:hover,
+.RowCommands-bulkButton:disabled,
+.RowCommands-bulkButton:disabled:hover {
     color: var(--RowCommands-foreground-disabled);
     background-color: var(--RowCommands-background);
     border-color: var(--RowCommands-stroke-disabled);
@@ -686,6 +705,117 @@
 
 .RowCommands-pagerStatus {
     color: var(--RowCommands-foreground-secondary);
+}
+
+/* Pushed to the far end of the pager: it is about the table, not the page. */
+.RowCommands-pager .RowCommands-resetWidths {
+    margin-inline-start: auto;
+}
+
+/* ---- selection ---------------------------------------------------------- */
+
+/*
+  The checkbox column. Clipped rather than ellipsed: `text-overflow: ellipsis`
+  on a cell holding a control draws a stray "…" after it, which is how
+  pcf-data-table's first selection column looked.
+*/
+.RowCommands-table .RowCommands-selectCell {
+    padding-inline: var(--spacingHorizontalS, 8px);
+    text-align: center;
+    text-overflow: clip;
+}
+
+.RowCommands-select {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    vertical-align: middle;
+    accent-color: var(--RowCommands-brand);
+    cursor: pointer;
+}
+
+.RowCommands-select:disabled {
+    cursor: default;
+}
+
+/*
+  A selected row is tinted, and the sticky command cell with it — the same
+  reason the hover rule above reaches it: otherwise the commands sit in a stripe
+  of the wrong colour exactly on the rows the user picked.
+*/
+.RowCommands-table tbody tr.is-selected,
+.RowCommands-table tbody tr.is-selected td:last-child {
+    background-color: var(--RowCommands-row-selected);
+}
+
+/*
+  The bar over the table while anything is selected. A surface of its own, like
+  the status bar, so it reads as belonging to the selection rather than as a
+  line of the table.
+*/
+.RowCommands-bulk {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacingHorizontalS, 8px);
+    padding: var(--spacingVerticalXS, 4px) var(--spacingHorizontalM, 12px);
+    background: var(--RowCommands-surface-subtle);
+    border-radius: var(--RowCommands-radius);
+}
+
+.RowCommands-bulkText {
+    font-weight: var(--fontWeightSemibold, 600);
+    margin-inline-end: auto;
+}
+
+/* ---- resizing ----------------------------------------------------------- */
+
+/*
+  The handle is an 8px strip on the header's trailing edge, drawn as a 2px line
+  only while it is wanted — hovered, focused, or held. Always visible, twenty
+  grab lines down a header row read as grid lines nobody asked for.
+
+  The header cell is already `position: sticky`, which is a containing block
+  for an absolute child, so the strip sits inside the cell it resizes and is
+  clipped with it.
+*/
+.RowCommands-table th.is-resizable {
+    padding-inline-end: calc(var(--spacingHorizontalM, 12px) + 4px);
+}
+
+.RowCommands-resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    inset-inline-end: 0;
+    width: 8px;
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+    outline-style: none;
+}
+
+.RowCommands-resizer::after {
+    content: "";
+    position: absolute;
+    top: 25%;
+    bottom: 25%;
+    inset-inline-end: 3px;
+    width: 2px;
+    border-radius: 1px;
+    background: transparent;
+    transition: background-color var(--RowCommands-duration) var(--RowCommands-curve);
+}
+
+.RowCommands-resizer:hover::after {
+    background: var(--RowCommands-stroke-hover);
+}
+
+.RowCommands-resizer:focus-visible::after,
+.RowCommands-resizer.is-dragging::after {
+    top: 0;
+    bottom: 0;
+    background: var(--RowCommands-brand);
 }
 
 /*
@@ -701,8 +831,17 @@
         border-bottom-color: ButtonBorder;
     }
 
-    .RowCommands-pager button {
+    .RowCommands-pager button,
+    .RowCommands-bulkButton {
         border-color: ButtonBorder;
+    }
+
+    /* A selected row's tint is gone here; the checkbox is what says it. The
+       resizer's line is drawn in the system's own highlight. */
+    .RowCommands-resizer:hover::after,
+    .RowCommands-resizer:focus-visible::after,
+    .RowCommands-resizer.is-dragging::after {
+        background: Highlight;
     }
 
     .RowCommands-pager button:disabled {
@@ -753,7 +892,15 @@
     .RowCommands-table tbody tr,
     .RowCommands-sort,
     .RowCommands-command,
-    .RowCommands-pager button {
+    .RowCommands-pager button,
+    .RowCommands-bulkButton,
+    .RowCommands-resizer::after {
         transition-duration: 0.01ms;
     }
 }
+
+/* The bulk bar's own delete, in the row command's danger colour. */
+.RowCommands-bulkDelete {
+    color: var(--RowCommands-foreground-danger);
+}
+

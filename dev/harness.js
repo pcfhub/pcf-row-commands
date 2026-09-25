@@ -84,6 +84,13 @@
             hasNavigation: document.getElementById('harness-navigation').checked,
             openFile: document.getElementById('harness-openfile').checked,
             dialogs: document.getElementById('harness-dialogs').value,
+            hasPrivilege: document.getElementById('harness-privilege').value === 'nodelete'
+                ? function (type) {
+                    return type !== 4;
+                }
+                : true,
+            utilityDeclared: document.getElementById('harness-privilege').value !== 'undeclared',
+            storage: document.getElementById('harness-storage').value,
             quirks: {
                 accumulatePages: document.getElementById('harness-accumulate').checked,
                 previousPageStuck: document.getElementById('harness-stuck').checked,

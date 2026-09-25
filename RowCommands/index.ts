@@ -1,8 +1,21 @@
 import { IInputs, IOutputs } from './generated/ManifestTypes';
-// THROWAWAY, with probe.ts: the 0.1.8 probe build. Remove both before 0.2.0.
-import { probe } from './probe';
-
-const PROBE = true;
+import { BulkItem, BulkResult, runSequential } from './bulk';
+import { canDeleteByRole } from './privileges';
+import { pageState, prune, sameSet, toggle, togglePage } from './selection';
+import {
+    Layout,
+    MAX_WIDTH,
+    MIN_WIDTH,
+    Overrides,
+    StorageLike,
+    baseWidths,
+    clampWidth,
+    layout,
+    nudge,
+    readOverrides,
+    storageKey,
+    writeOverrides,
+} from './widths';
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
 type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
@@ -45,11 +58,19 @@ const STATUS_TIMEOUT_MS = 6000;
 const COMMANDS_WIDTH = 308;
 const COMMANDS_WIDTH_COMPACT = 152;
 
-/** What a column is given when the host reports no width for it. */
-const FALLBACK_COLUMN_WIDTH = 140;
+/** The selection column: a 20px checkbox and the cell's padding. Never stretched. */
+const SELECT_WIDTH = 44;
 
-/** The three commands, as they appear on `invokedCommand`. */
-type CommandName = 'open' | 'url' | 'delete';
+/** The commands, as they appear on `invokedCommand`. */
+type CommandName = 'open' | 'url' | 'delete' | 'deleteSelected';
+
+/**
+ * `localStorage`, read through a function because **the access itself can
+ * throw** — a `SecurityError` where site data is blocked — and a getter
+ * evaluated inside `widths.ts`'s try is the only place that throw is caught.
+ */
+const browserStorage = (): StorageLike | undefined =>
+    typeof globalThis.localStorage === 'undefined' ? undefined : globalThis.localStorage;
 
 /**
  * A view with a command column: open the record, launch a link, delete it.
@@ -79,16 +100,24 @@ type CommandName = 'open' | 'url' | 'delete';
  *     it is given to the host. `safeUrl` is the boundary and the Launch button
  *     does not render without it.
  *   - **`openForm` is preferred over `openDatasetItem` for one reason**: it
- *     returns a promise, so the view can be refreshed when the form closes. The
- *     dataset's own route has no completion signal at all.
+ *     returns a promise, and the dataset's own route has no completion signal
+ *     at all. Measured 2026-09-25 (SPEC.md P7), that promise settles on
+ *     *navigation*, not on close — the form opens in place and the control is
+ *     torn down — so the refresh after it rarely runs, and `disposed` is what
+ *     keeps it from running against a control that is gone.
  *   - `updateView` runs on every change to any bound value, including the ones
  *     this control caused. Every mutator below is either guarded or in an event
  *     handler, and a delete ends in `refresh()` — which is a mutator in a
  *     handler, not in `updateView`, and that is why it is safe.
  *   - This control rebuilds its DOM on every render, so anything focused ceases
- *     to exist. `restoreFocus` pays for that on the pager; the live region is
- *     built once in `init` and lives *outside* the rebuilt surface, because an
- *     announcement destroyed in the same tick is an announcement nobody hears.
+ *     to exist. `restoreFocus` pays for that on the pager, and a `data-focus`
+ *     key on every other focusable element pays for it everywhere else; the
+ *     live region is built once in `init` and lives *outside* the rebuilt
+ *     surface, because an announcement destroyed in the same tick is an
+ *     announcement nobody hears.
+ *   - **Except during a column drag.** A render mid-drag would destroy the
+ *     handle holding the pointer capture, so an `updateView` that arrives then
+ *     is owed rather than performed, and paid on release.
  */
 export class RowCommands implements ComponentFramework.StandardControl<IInputs, IOutputs> {
     private container!: HTMLDivElement;
@@ -140,6 +169,57 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
     /** Clears a success or information message; errors are left up. */
     private statusTimer: number | undefined;
+
+    /**
+     * The selected ids — the control's own copy, and the one that decides.
+     * Kept to the page on screen; see `selection.ts` for why.
+     */
+    private selected: string[] = [];
+
+    /**
+     * A bulk delete in flight, or `null`. `stop` is the Stop button's only
+     * effect: the record in flight finishes, and the next is not started.
+     */
+    private bulk: { done: number; total: number; stop: boolean } | null = null;
+
+    /** The progress line, updated in place so the Stop button keeps focus. */
+    private progressText: HTMLElement | null = null;
+
+    /** `canDeleteByRole` per table. Roles do not change inside a session. */
+    private readonly roles = new Map<string, boolean | null>();
+
+    /**
+     * The widths the user dragged, for the view in `widthKey`, and the key
+     * itself — read from storage once per view rather than once per render.
+     */
+    private overrides: Overrides = {};
+    private widthKey = '';
+
+    /**
+     * What the last render laid out, and with what: enough to lay the same
+     * table out again during a drag without rebuilding it.
+     */
+    private drawn: {
+        names: string[];
+        base: number[];
+        commands: number;
+        fixed: number;
+        available: number;
+        result: Layout;
+        headers: HTMLElement[];
+        resizers: HTMLElement[];
+        commandsHeader: HTMLElement;
+        table: HTMLElement;
+    } | null = null;
+
+    /** A column drag in progress. */
+    private resizing: { index: number; startX: number; startWidth: number; moved: boolean } | null = null;
+
+    /** An `updateView` that arrived mid-drag, paid on release. */
+    private renderOwed = false;
+
+    /** The context and dataset of the latest pass — the dataset is a new object every pass. */
+    private latest: { context: ComponentFramework.Context<IInputs>; dataset: DataSet } | null = null;
 
     public init(
         context: ComponentFramework.Context<IInputs>,
@@ -195,15 +275,19 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
     public updateView(context: ComponentFramework.Context<IInputs>): void {
         const dataset = context.parameters.records;
 
+        this.latest = { context, dataset };
+
         this.applyTheme(context);
         this.applyWidth(context);
         this.applyHeight(context);
         this.applyPageSize(context, dataset);
-        this.render(context, dataset);
 
-        if (PROBE) {
-            probe(context, dataset, this.container);
+        if (this.resizing) {
+            this.renderOwed = true;
+            return;
         }
+
+        this.render(context, dataset);
     }
 
     /**
@@ -311,6 +395,12 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         this.pending = '';
         this.clearStatusTimer();
 
+        // A bulk delete stops at the next record — `shouldStop` reads
+        // `disposed` — and a drag's listeners live on its handle, below.
+        this.resizing = null;
+        this.drawn = null;
+        this.latest = null;
+
         // Listeners are attached to elements inside `container`, which the
         // platform removes — but the container itself is reused, so clear it.
         this.container.innerHTML = '';
@@ -392,6 +482,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
          */
         if (previous > 0) {
             this.page = 1;
+            this.clearSelection(dataset);
             dataset.paging.reset();
         }
 
@@ -449,9 +540,42 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         }
 
         const ids = this.currentPage(all);
+        const selectable = asBoolean(context.parameters.showSelection?.raw, false);
 
-        this.surface.appendChild(this.table(context, dataset, columns, ids, getString));
-        this.surface.appendChild(this.pager(dataset, ids.length, getString));
+        /*
+         * The selection is kept to the rows on screen, and handed back to the
+         * platform only when that changed it — `setSelectedRecordIds` is the
+         * command bar's contract (P3), and a render that re-sent an unchanged
+         * selection on every pass would be a mutator in `updateView` for
+         * nothing. A ribbon Delete is how rows leave without this control
+         * hearing of it; the intersection is how it catches up.
+         */
+        const kept = selectable ? prune(this.selected, ids) : [];
+
+        if (!sameSet(kept, this.selected)) {
+            this.selected = kept;
+            this.commitSelection(dataset);
+        }
+
+        // Whatever had focus is about to be destroyed; remember which one it was.
+        const focused = (document.activeElement as HTMLElement | null)?.dataset?.focus;
+
+        if (selectable && (this.selected.length > 0 || this.bulk)) {
+            this.surface.appendChild(this.bulkBar(context, dataset, columns, getString));
+        }
+
+        this.surface.appendChild(this.table(context, dataset, columns, ids, selectable, getString));
+        this.surface.appendChild(this.pager(context, dataset, ids.length, getString));
+        this.fitToScroll();
+
+        if (focused) {
+            // `Array.from`: a browser's NodeList has no `find`, and dev/dom.js
+            // returns an array that does — the difference would pass here.
+            const again = Array.from(this.surface.querySelectorAll<HTMLElement>('.RowCommands-focusable'))
+                .find((element) => element.dataset.focus === focused);
+
+            again?.focus();
+        }
 
         // The button that caused this render no longer exists. Put focus on its
         // replacement, or fall back to the other one when this page turn was
@@ -517,6 +641,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         dataset: DataSet,
         columns: Column[],
         ids: string[],
+        selectable: boolean,
         getString: (id: string) => string,
     ): HTMLElement {
         const table = document.createElement('table');
@@ -528,41 +653,41 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         table.appendChild(caption);
 
         const head = table.createTHead().insertRow();
+        const enabled = !context.mode.isControlDisabled;
+        const resizable = !asBoolean(context.parameters.lockColumnWidths?.raw, false);
 
         /*
-         * The maker's own column widths, from the view designer.
+         * The maker's own column widths, from the view designer, and any the
+         * user dragged since — see `widths.ts`, which owns the arithmetic.
          *
-         * `visualSizeFactor` is what the person who built the view dragged the
-         * column edges to, and ignoring it is why every column came out the
-         * same width and every value was truncated to an ellipsis — the primary
-         * column, which is the one anybody reads, got the same 74 pixels as a
-         * status. Under `table-layout: fixed` a width on the header row is what
-         * decides the column, so this is where it goes.
-         *
-         * **Canvas reports 0 for every column**, and a table of zero-width
-         * columns is not a degraded layout, it is an invisible one. So the
-         * factors are only used when at least one of them is real; otherwise
-         * every column gets the same fallback and the result is what it was
-         * before.
+         * Read from storage once per view: the key is table + view, so a
+         * different view, or the same one on another form, starts from its
+         * own. **A locked control draws the maker's widths whatever was
+         * stored**, so a maker who locks widths after users have dragged them
+         * gets the view they designed, not a leftover.
          */
-        const factors = columns.map((column) => (column.visualSizeFactor > 0 ? column.visualSizeFactor : 0));
-        const measured = factors.some((factor) => factor > 0);
-        const widths = factors.map((factor) =>
-            measured ? Math.max(factor, 64) : FALLBACK_COLUMN_WIDTH,
-        );
-        const commandsWidth = this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH;
+        const key = storageKey(dataset.getTargetEntityType(), viewIdOf(dataset), columns);
 
-        /*
-         * And the floor the whole thing scrolls inside. Below this the columns
-         * would be squeezed rather than scrolled, which is the state the
-         * ellipsis hides: a table that technically fits and says nothing.
-         */
-        table.style.minWidth = `${widths.reduce((total, width) => total + width, 0) + commandsWidth}px`;
+        if (key !== this.widthKey) {
+            this.widthKey = key;
+            this.overrides = readOverrides(browserStorage, key, columns);
+        }
+
+        const names = columns.map((column) => column.name);
+        const commands = this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH;
+        const fixed = selectable ? SELECT_WIDTH : 0;
+        const allocated = context.mode.allocatedWidth;
+
+        if (selectable) {
+            head.appendChild(this.selectAllCell(dataset, ids, enabled, getString));
+        }
+
+        const headers: HTMLElement[] = [];
+        const resizers: HTMLElement[] = [];
 
         for (const [index, column] of columns.entries()) {
             const th = document.createElement('th');
             th.scope = 'col';
-            th.style.width = `${widths[index]}px`;
 
             if (column.disableSorting) {
                 th.textContent = column.displayName;
@@ -581,22 +706,45 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                 // handler on the <th> is not.
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = 'RowCommands-sort';
+                button.className = 'RowCommands-sort RowCommands-focusable';
+                button.dataset.focus = `sort:${column.name}`;
                 button.textContent = column.displayName;
                 button.title = getString('RowCommands_SortBy').replace('{0}', column.displayName);
                 button.addEventListener('click', () => this.sortBy(dataset, column.name));
                 th.appendChild(button);
             }
 
+            if (resizable) {
+                const handle = this.resizer(index, column, getString);
+
+                th.classList.add('is-resizable');
+                th.appendChild(handle);
+                resizers.push(handle);
+            }
+
+            headers.push(th);
             head.appendChild(th);
         }
 
         const commandsHeader = document.createElement('th');
         commandsHeader.scope = 'col';
         commandsHeader.className = 'RowCommands-commandsHeader';
-        commandsHeader.style.width = `${commandsWidth}px`;
         commandsHeader.textContent = getString('RowCommands_Commands');
         head.appendChild(commandsHeader);
+
+        this.drawn = {
+            names,
+            base: baseWidths(columns),
+            commands,
+            fixed,
+            available: typeof allocated === 'number' && allocated > 0 ? allocated : 0,
+            result: { columns: [], commands, table: 0 },
+            headers,
+            resizers,
+            commandsHeader,
+            table,
+        };
+        this.relayout();
 
         const body = table.createTBody();
         const primary = columns.find((column) => column.isPrimary) ?? columns[0];
@@ -630,6 +778,13 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             const primaryValue = record.getFormattedValue(primary.name);
             const label = primaryValue !== '' ? primaryValue : getString('RowCommands_Untitled');
 
+            if (selectable) {
+                const on = this.selected.includes(id);
+
+                row.className = on ? 'is-selected' : '';
+                row.appendChild(this.selectCell(dataset, id, label, on, enabled, getString));
+            }
+
             for (const column of columns) {
                 const cell = row.insertCell();
                 const value = record.getFormattedValue(column.name);
@@ -654,6 +809,623 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         scroll.appendChild(table);
 
         return scroll;
+    }
+
+    /**
+     * Lay the drawn table out again from `drawn` and `overrides`, touching
+     * widths only — no rebuild, so a drag keeps its handle and a key press
+     * keeps its focus.
+     *
+     * **The table's width is set, not only its minimum.** 0.1.x set
+     * `min-width` and left `width: 100%` to stretch every column on a wide host
+     * (×2.23 on a 2,490px main grid, P5), which a dragged width cannot survive:
+     * the browser would share the surplus into it too. `layout()` shares it out
+     * instead, to the columns nobody resized.
+     */
+    private relayout(): void {
+        const drawn = this.drawn;
+
+        if (!drawn) {
+            return;
+        }
+
+        const overrides = drawn.resizers.length > 0 ? drawn.names.map((name) => this.overrides[name]) : [];
+        const result = layout(drawn.base, overrides, drawn.commands, drawn.fixed, drawn.available);
+
+        drawn.result = result;
+        drawn.headers.forEach((th, index) => {
+            th.style.width = `${result.columns[index]}px`;
+        });
+        drawn.resizers.forEach((handle, index) => {
+            handle.setAttribute('aria-valuenow', String(result.columns[index]));
+        });
+        drawn.commandsHeader.style.width = `${result.commands}px`;
+        drawn.table.style.width = `${result.table}px`;
+        drawn.table.style.minWidth = `${result.table}px`;
+    }
+
+    /**
+     * Narrow the width `layout()` fills to what the scroll box actually has.
+     *
+     * `allocatedWidth` is the host's number and can overstate the room — the
+     * hub's demo counted its own padding into it, and a vertical scrollbar
+     * takes its width out of the box without telling anyone. Filling the
+     * allocated width exactly would then add a horizontal scrollbar for a few
+     * pixels. So once the table is in the page, the box's own `clientWidth` is
+     * the ceiling: draw at min(measured, allocated). `dev/dom.js` computes no
+     * layout, so there this is a no-op and the allocated width stands.
+     */
+    private fitToScroll(): void {
+        const drawn = this.drawn;
+        const box = drawn?.table.parentElement;
+        const measured = box && typeof box.clientWidth === 'number' ? box.clientWidth : 0;
+
+        if (!drawn || measured <= 0) {
+            return;
+        }
+
+        const available = drawn.available > 0 ? Math.min(drawn.available, measured) : measured;
+
+        if (available !== drawn.available) {
+            drawn.available = available;
+            this.relayout();
+        }
+    }
+
+    /**
+     * The handle at a column's trailing edge.
+     *
+     * A `separator` with a value, because that is what a resizer is to
+     * assistive technology: focusable, announced with its width, moved by the
+     * arrow keys. The pointer route and the keyboard route write the same
+     * override.
+     *
+     * **The handle alone takes the press.** Measured 2026-09-25 (P6): a press
+     * on a header in a subgrid reaches the control, `setPointerCapture`
+     * holds, and `pointerup` and `lostpointercapture` follow. The listeners
+     * are on the handle and nowhere else, because `pcf-calendar-view` found
+     * that a second `pointerup` listener on a parent commits the drag twice.
+     */
+    private resizer(index: number, column: Column, getString: (id: string) => string): HTMLElement {
+        const handle = document.createElement('span');
+
+        handle.className = 'RowCommands-resizer RowCommands-focusable';
+        handle.dataset.focus = `resize:${column.name}`;
+        handle.setAttribute('role', 'separator');
+        handle.setAttribute('aria-orientation', 'vertical');
+        handle.setAttribute('aria-label', getString('RowCommands_ResizeColumn').replace('{0}', column.displayName));
+        handle.setAttribute('aria-valuemin', String(MIN_WIDTH));
+        handle.setAttribute('aria-valuemax', String(MAX_WIDTH));
+        handle.tabIndex = 0;
+
+        const move = (event: PointerEvent): void => {
+            const drag = this.resizing;
+
+            if (!drag || drag.index !== index) {
+                return;
+            }
+
+            const delta = (event.clientX - drag.startX) * (this.rtl() ? -1 : 1);
+            const width = clampWidth(drag.startWidth + delta);
+
+            if (width === drag.startWidth && !drag.moved) {
+                return;
+            }
+
+            drag.moved = true;
+            this.overrides = { ...this.overrides, [column.name]: width };
+            this.relayout();
+        };
+
+        const end = (): void => {
+            const drag = this.resizing;
+
+            if (!drag || drag.index !== index) {
+                return;
+            }
+
+            this.resizing = null;
+            handle.classList.remove('is-dragging');
+            handle.removeEventListener('pointermove', move as EventListener);
+            handle.removeEventListener('pointerup', end);
+            handle.removeEventListener('pointercancel', end);
+            handle.removeEventListener('lostpointercapture', end);
+
+            // A width changes only on a move, so a press that never moved has
+            // nothing to store — and storage is not rewritten for nothing.
+            if (drag.moved) {
+                writeOverrides(browserStorage, this.widthKey, this.overrides);
+            }
+
+            this.payRenderOwed();
+        };
+
+        handle.addEventListener('pointerdown', (event: PointerEvent) => {
+            if (event.button !== 0 || this.resizing || !this.drawn) {
+                return;
+            }
+
+            // No text selection and no native drag for the length of it.
+            event.preventDefault();
+
+            this.resizing = {
+                index,
+                startX: event.clientX,
+                startWidth: this.drawn.result.columns[index],
+                moved: false,
+            };
+
+            try {
+                handle.setPointerCapture(event.pointerId);
+            } catch {
+                // A host that refuses capture still gets the drag while the
+                // pointer stays on the handle; the release still ends it.
+            }
+
+            handle.classList.add('is-dragging');
+            handle.addEventListener('pointermove', move as EventListener);
+            handle.addEventListener('pointerup', end);
+            handle.addEventListener('pointercancel', end);
+            handle.addEventListener('lostpointercapture', end);
+        });
+
+        handle.addEventListener('keydown', (event: KeyboardEvent) => {
+            if (!this.drawn) {
+                return;
+            }
+
+            if (event.key === 'Home') {
+                event.preventDefault();
+                this.resetColumn(column.name);
+
+                return;
+            }
+
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+                return;
+            }
+
+            event.preventDefault();
+
+            const wider = (event.key === 'ArrowRight') !== this.rtl();
+
+            this.overrides = {
+                ...this.overrides,
+                [column.name]: nudge(this.drawn.result.columns[index], wider ? 1 : -1, event.shiftKey),
+            };
+            this.relayout();
+            writeOverrides(browserStorage, this.widthKey, this.overrides);
+        });
+
+        // The maker's width back for this one column: a double-click, as in
+        // every grid that has resizers, and Home from the keyboard.
+        handle.addEventListener('dblclick', () => this.resetColumn(column.name));
+
+        return handle;
+    }
+
+    private resetColumn(name: string): void {
+        if (!(name in this.overrides)) {
+            return;
+        }
+
+        const next = { ...this.overrides };
+
+        delete next[name];
+        this.overrides = next;
+        this.relayout();
+        writeOverrides(browserStorage, this.widthKey, this.overrides);
+    }
+
+    /** Every dragged width forgotten, for this view. */
+    private resetWidths(): void {
+        this.overrides = {};
+        writeOverrides(browserStorage, this.widthKey, this.overrides);
+
+        if (this.latest) {
+            this.announce(this.latest.context.resources.getString('RowCommands_WidthsReset'));
+            this.render(this.latest.context, this.latest.dataset);
+        }
+    }
+
+    /** The render an `updateView` asked for while a drag held the table. */
+    private payRenderOwed(): void {
+        if (!this.renderOwed || this.disposed || !this.latest) {
+            this.renderOwed = false;
+            return;
+        }
+
+        this.renderOwed = false;
+        this.render(this.latest.context, this.latest.dataset);
+    }
+
+    /**
+     * Right-to-left flips which way is wider. Read from the computed style,
+     * because the `dir` that decides it may be on any ancestor — the form's,
+     * not this control's. A host with no `getComputedStyle` is left-to-right.
+     */
+    private rtl(): boolean {
+        try {
+            return getComputedStyle(this.container).direction === 'rtl';
+        } catch {
+            return false;
+        }
+    }
+
+    /* ---------------------------------------------------------- selection */
+
+    private selectAllCell(
+        dataset: DataSet,
+        ids: string[],
+        enabled: boolean,
+        getString: (id: string) => string,
+    ): HTMLElement {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.className = 'RowCommands-selectCell';
+        th.style.width = `${SELECT_WIDTH}px`;
+
+        const box = document.createElement('input');
+        const state = pageState(this.selected, ids);
+
+        box.type = 'checkbox';
+        box.className = 'RowCommands-select RowCommands-focusable';
+        box.dataset.focus = 'select:page';
+        box.setAttribute('aria-label', getString('RowCommands_SelectPage'));
+        box.checked = state === 'all';
+        box.indeterminate = state === 'some';
+        box.disabled = !enabled || this.bulk !== null;
+        box.addEventListener('change', () => {
+            if (box.disabled) {
+                return;
+            }
+
+            this.selected = togglePage(this.selected, ids);
+            this.commitSelection(dataset);
+            this.rerender();
+        });
+
+        th.appendChild(box);
+
+        return th;
+    }
+
+    private selectCell(
+        dataset: DataSet,
+        id: string,
+        label: string,
+        on: boolean,
+        enabled: boolean,
+        getString: (id: string) => string,
+    ): HTMLTableCellElement {
+        const td = document.createElement('td');
+        td.className = 'RowCommands-selectCell';
+
+        const box = document.createElement('input');
+
+        box.type = 'checkbox';
+        box.className = 'RowCommands-select RowCommands-focusable';
+        box.dataset.focus = `select:${id}`;
+        box.setAttribute('aria-label', getString('RowCommands_SelectRow').replace('{0}', label));
+        box.checked = on;
+        box.disabled = !enabled || this.bulk !== null;
+        box.addEventListener('change', () => {
+            if (box.disabled) {
+                return;
+            }
+
+            this.selected = toggle(this.selected, id);
+            this.commitSelection(dataset);
+            this.rerender();
+        });
+
+        td.appendChild(box);
+
+        return td;
+    }
+
+    /**
+     * Hand the selection to the platform. Not bookkeeping: on a subgrid it is
+     * what the command bar acts on — measured, P3 — so it is called on every
+     * change rather than once at the end.
+     */
+    private commitSelection(dataset: DataSet): void {
+        if (typeof dataset.setSelectedRecordIds === 'function') {
+            dataset.setSelectedRecordIds([...this.selected]);
+        }
+    }
+
+    /** A page turn, a sort, a new page size: the rows on screen are other rows. */
+    private clearSelection(dataset: DataSet): void {
+        if (this.selected.length === 0) {
+            return;
+        }
+
+        this.selected = [];
+        this.commitSelection(dataset);
+    }
+
+    private rerender(): void {
+        if (this.latest && !this.disposed) {
+            this.render(this.latest.context, this.latest.dataset);
+        }
+    }
+
+    /**
+     * The bar over the table while anything is selected: the count, Delete
+     * selected where the row's Delete would be offered, and Clear. During a
+     * bulk delete it is the progress line and Stop instead — the one control a
+     * user needs then.
+     */
+    private bulkBar(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        columns: Column[],
+        getString: (id: string) => string,
+    ): HTMLElement {
+        const bar = document.createElement('div');
+        bar.className = 'RowCommands-bulk';
+
+        const text = document.createElement('span');
+        text.className = 'RowCommands-bulkText';
+        bar.appendChild(text);
+        this.progressText = null;
+
+        if (this.bulk) {
+            text.textContent = this.progressLine(getString);
+            this.progressText = text;
+
+            const stop = this.barButton('stop', getString('RowCommands_Stop'), () => {
+                if (this.bulk) {
+                    this.bulk.stop = true;
+                    stop.disabled = true;
+                }
+            });
+
+            stop.disabled = this.bulk.stop;
+            bar.appendChild(stop);
+
+            return bar;
+        }
+
+        text.textContent = getString('RowCommands_SelectedCount').replace('{0}', String(this.selected.length));
+
+        if (this.canOfferDelete(context, dataset) && !context.mode.isControlDisabled && this.pending === '') {
+            const remove = this.barButton(
+                'delete',
+                getString('RowCommands_DeleteSelected'),
+                () => this.askToDeleteSelected(context, dataset, columns, getString),
+                GLYPH_DELETE,
+            );
+
+            remove.classList.add('RowCommands-bulkDelete');
+            bar.appendChild(remove);
+        }
+
+        bar.appendChild(
+            this.barButton('clear', getString('RowCommands_ClearSelection'), () => {
+                this.clearSelection(dataset);
+                this.rerender();
+            }),
+        );
+
+        return bar;
+    }
+
+    private barButton(name: string, text: string, run: () => void, glyph?: string): HTMLButtonElement {
+        const button = document.createElement('button');
+
+        button.type = 'button';
+        button.className = 'RowCommands-bulkButton RowCommands-focusable';
+        button.dataset.focus = `bulk:${name}`;
+
+        if (glyph) {
+            button.appendChild(icon(glyph));
+        }
+
+        button.appendChild(document.createTextNode(text));
+        button.addEventListener('click', () => {
+            if (!button.disabled) {
+                run();
+            }
+        });
+
+        return button;
+    }
+
+    private progressLine(getString: (id: string) => string): string {
+        const bulk = this.bulk;
+
+        if (!bulk) {
+            return '';
+        }
+
+        return getString('RowCommands_DeletingProgress')
+            .replace('{0}', String(Math.min(bulk.done + 1, bulk.total)))
+            .replace('{1}', String(bulk.total));
+    }
+
+    /**
+     * Whether a Delete — the row's or the selection's — is offered at all:
+     * the maker asked for it, the host can confirm and delete, and the user's
+     * roles do not rule it out. `null` from the roles is "cannot say", which
+     * offers it, as 0.1.x did, and leaves the refusal to the server.
+     */
+    private canOfferDelete(context: ComponentFramework.Context<IInputs>, dataset: DataSet): boolean {
+        return (
+            asBoolean(context.parameters.showDelete.raw, false) &&
+            canDelete(context) &&
+            this.roleAllows(context, dataset) !== false
+        );
+    }
+
+    private roleAllows(context: ComponentFramework.Context<IInputs>, dataset: DataSet): boolean | null {
+        const table = dataset.getTargetEntityType();
+
+        if (!this.roles.has(table)) {
+            this.roles.set(table, canDeleteByRole((context as { utils?: unknown }).utils, table));
+        }
+
+        return this.roles.get(table) ?? null;
+    }
+
+    /**
+     * Confirm once, then delete the selection one record at a time.
+     *
+     * The single-record path's rules hold — a cancel resolves, the press is
+     * reported only after the confirmation, a rejection is a plain object —
+     * and three are added:
+     *
+     *   - **One selected row is the row's own Delete**, with its own wording.
+     *     "Delete 1 records?" is the sentence nobody proofreads.
+     *   - **One refresh, at the end.** The rows leave the fetch, not the call,
+     *     and twelve refreshes in flight would each be dropped for the next.
+     *   - **What failed is named**, in the error dialog's details, record by
+     *     record. A delete that stopped at a cascade restriction on row 7 of 12
+     *     is not the same outcome as twelve that failed, and says so.
+     */
+    private askToDeleteSelected(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        columns: Column[],
+        getString: (id: string) => string,
+    ): void {
+        const ids = [...this.selected];
+        const primary = columns.find((column) => column.isPrimary) ?? columns[0];
+        const labelOf = (id: string): string => {
+            const value = dataset.records[id]?.getFormattedValue(primary.name) ?? '';
+
+            return value !== '' ? value : getString('RowCommands_Untitled');
+        };
+
+        if (ids.length === 0) {
+            return;
+        }
+
+        if (ids.length === 1) {
+            this.askToDelete(context, dataset, ids[0], labelOf(ids[0]), getString);
+            return;
+        }
+
+        const navigation = context.navigation;
+        const webAPI = context.webAPI;
+
+        if (!this.canOfferDelete(context, dataset) || this.pending !== '' || this.bulk || !navigation || !webAPI) {
+            return;
+        }
+
+        const table = dataset.getTargetEntityType();
+        const items: BulkItem[] = ids.map((id) => ({ id, label: labelOf(id) }));
+        const count = String(ids.length);
+
+        this.pending = 'bulk';
+
+        void navigation
+            .openConfirmDialog({
+                title: getString('RowCommands_DeleteSelectedTitle').replace('{0}', count),
+                text: getString('RowCommands_DeleteSelectedText').replace('{0}', count),
+                confirmButtonLabel: getString('RowCommands_DeleteConfirm'),
+                cancelButtonLabel: getString('RowCommands_DeleteCancel'),
+            })
+            .then((response) => {
+                if (this.disposed) {
+                    return undefined;
+                }
+
+                if (!response?.confirmed) {
+                    this.announce(getString('RowCommands_DeleteCancelled'));
+                    return undefined;
+                }
+
+                this.report(ids.join(','), 'deleteSelected');
+                this.bulk = { done: 0, total: ids.length, stop: false };
+                this.announce(getString('RowCommands_DeletingStarted').replace('{0}', count));
+                this.rerender();
+
+                return runSequential(items, (id) => webAPI.deleteRecord(table, id), {
+                    shouldStop: () => this.disposed || this.bulk === null || this.bulk.stop,
+                    onProgress: (done) => {
+                        if (this.bulk) {
+                            this.bulk.done = done;
+                        }
+
+                        if (this.progressText) {
+                            this.progressText.textContent = this.progressLine(getString);
+                        }
+                    },
+                    describe: describeError,
+                }).then((result) => this.finishBulk(context, result, ids.length, getString));
+            })
+            .catch(() => {
+                // Only the dialog can land here — `runSequential` never rejects.
+                if (!this.disposed) {
+                    this.announce(getString('RowCommands_DeleteSelectedFailed'), 'error');
+                }
+            })
+            .then(() => {
+                this.pending = '';
+                this.bulk = null;
+
+                if (!this.disposed) {
+                    this.rerender();
+                }
+            });
+    }
+
+    private finishBulk(
+        context: ComponentFramework.Context<IInputs>,
+        result: BulkResult,
+        total: number,
+        getString: (id: string) => string,
+    ): void {
+        if (this.disposed) {
+            return;
+        }
+
+        const gone = result.deleted.map((item) => item.id);
+
+        this.selected = this.selected.filter((id) => !gone.includes(id));
+
+        if (this.latest) {
+            this.commitSelection(this.latest.dataset);
+
+            // The rows leave the fetch, not the call. Once, for all of them.
+            if (gone.length > 0) {
+                this.latest.dataset.refresh();
+            }
+        }
+
+        const deleted = String(result.deleted.length);
+
+        if (result.failed.length > 0) {
+            this.announce(
+                getString('RowCommands_DeletedSome')
+                    .replace('{0}', deleted)
+                    .replace('{1}', String(total))
+                    .replace('{2}', String(result.failed.length)),
+                'error',
+            );
+
+            const navigation = context.navigation;
+
+            if (typeof navigation?.openErrorDialog === 'function') {
+                void navigation
+                    .openErrorDialog({
+                        message: getString('RowCommands_DeleteSelectedFailed'),
+                        details: result.failed.map((item) => `${item.label}: ${item.detail}`).join('\n'),
+                    })
+                    .catch(() => undefined);
+            }
+
+            return;
+        }
+
+        if (result.stopped) {
+            this.announce(getString('RowCommands_DeleteStopped').replace('{0}', deleted).replace('{1}', String(total)));
+            return;
+        }
+
+        this.announce(getString('RowCommands_DeletedMany').replace('{0}', deleted), 'success');
     }
 
     /**
@@ -722,14 +1494,14 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             );
         }
 
-        if (asBoolean(context.parameters.showDelete.raw, false) && canDelete(context)) {
+        if (this.canOfferDelete(context, dataset)) {
             group.appendChild(
                 this.command(
                     'delete',
                     GLYPH_DELETE,
                     getString('RowCommands_Delete'),
                     getString('RowCommands_DeleteRecord').replace('{0}', label),
-                    enabled && this.pending === '',
+                    enabled && this.pending === '' && this.bulk === null,
                     () => this.askToDelete(context, dataset, id, label, getString),
                 ),
             );
@@ -969,7 +1741,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         // Re-checked rather than trusted to the render that drew the button:
         // between the two, a `updateView` may have arrived from a host that
         // took the feature away.
-        if (!canDelete(context) || this.pending !== '' || !navigation || !webAPI) {
+        if (!this.canOfferDelete(context, dataset) || this.pending !== '' || this.bulk || !navigation || !webAPI) {
             return;
         }
 
@@ -1049,7 +1821,12 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             });
     }
 
-    private pager(dataset: DataSet, rowsOnPage: number, getString: (id: string) => string): HTMLElement {
+    private pager(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        rowsOnPage: number,
+        getString: (id: string) => string,
+    ): HTMLElement {
         const wrap = document.createElement('div');
         wrap.className = 'RowCommands-pager';
 
@@ -1097,6 +1874,22 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
         wrap.append(previous, status, next);
 
+        /*
+         * Only while there is something to reset, and never on a locked
+         * control — a button that does nothing is the thing this control's
+         * every other command is built to avoid.
+         */
+        if (!asBoolean(context.parameters.lockColumnWidths?.raw, false) && Object.keys(this.overrides).length > 0) {
+            const reset = document.createElement('button');
+
+            reset.type = 'button';
+            reset.className = 'RowCommands-resetWidths RowCommands-focusable';
+            reset.dataset.focus = 'reset-widths';
+            reset.textContent = getString('RowCommands_ResetWidths');
+            reset.addEventListener('click', () => this.resetWidths());
+            wrap.appendChild(reset);
+        }
+
         return wrap;
     }
 
@@ -1109,6 +1902,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      */
     private goToPage(dataset: DataSet, target: number): void {
         const back = target < this.page;
+
+        // The rows on screen are about to be other rows. See `selection.ts`.
+        this.clearSelection(dataset);
 
         this.page = Math.max(1, target);
 
@@ -1169,7 +1965,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         sorting.length = 0;
         sorting.push({ name: columnName, sortDirection: direction });
 
-        // A new order makes "page 4" meaningless.
+        // A new order makes "page 4" meaningless, and a selection of rows
+        // the user can no longer see.
+        this.clearSelection(dataset);
         this.page = 1;
         dataset.paging.reset();
         dataset.refresh();
@@ -1289,6 +2087,21 @@ function asBoolean(raw: unknown, fallback: boolean): boolean {
     }
 
     return fallback;
+}
+
+/**
+ * The view's id, or `null`. `getViewId` is not in every host's dataset —
+ * canvas has no saved view — so it is detected and its throw caught.
+ * Measured present and stable on a subgrid and a main grid (P4).
+ */
+function viewIdOf(dataset: DataSet): string | null {
+    try {
+        const id = (dataset as unknown as { getViewId?: () => unknown }).getViewId?.();
+
+        return typeof id === 'string' && id !== '' ? id : null;
+    } catch {
+        return null;
+    }
 }
 
 /**
