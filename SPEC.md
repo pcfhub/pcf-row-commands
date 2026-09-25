@@ -347,7 +347,30 @@ a NodeList, which has no `find`. The focus-restoring code calls `Array.from`
 first; without it the suite passes and the browser throws. A rig gap, noted for
 `_template`.
 
-## Not verified
+## What 0.2.0 showed on the main grid
+
+**The Commands header vanished once the rows scrolled.** Reported from the
+Accounts main grid the day 0.2.0 shipped, with a screenshot: the data headers
+stayed, and the command column's header was gone under the first visible row.
+Measured in the harness before changing anything — a 300px host, 12 rows,
+`scrollTop` 150: the header's box was where it belonged, sticky at the top,
+and `elementFromPoint` at its centre hit a row's *Open link*.
+`getComputedStyle` said `z-index: 1`.
+
+The rule meant to lift it, `.RowCommands .RowCommands-commandsHeader {
+z-index: 2 }`, is (0,2,0) and lost to `.RowCommands .RowCommands-table th {
+z-index: 1 }`, (0,2,1). A tie with every row's sticky command cell, and the
+rows come later in the document, so they paint over it. **It had been that way
+since 0.1.5** (3 September), which added both rules on the same day; nothing
+had scrolled a main grid far enough since for anyone to look. `th.` in the
+selector is the fix — 0.2.1 — measured the same way: visible scrolled down,
+visible scrolled down and across.
+
+No assertion can see this, and none was added: `dev/dom.js` has no cascade.
+The check is the one the skill already names for a stylesheet — read the
+computed value back — and it goes into the walkthrough for every control with a
+sticky header over a sticky column.
+
 
 Nothing in this repository has been on a real Power App **except what is
 recorded above**. Every other platform answer comes from `dev/host.js`.

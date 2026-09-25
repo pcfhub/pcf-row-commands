@@ -563,7 +563,16 @@
     z-index: 1;
 }
 
-.RowCommands .RowCommands-commandsHeader {
+/*
+  `th.` in the selector is the fix, not decoration. Written as
+  `.RowCommands .RowCommands-commandsHeader` (0,2,0) this lost to
+  `.RowCommands .RowCommands-table th` (0,2,1) above, so the header computed
+  `z-index: 1` — the same as every row's sticky command cell — and the rows,
+  later in the document, painted over it as they scrolled under. Shipped that
+  way from 0.1.5 (3 Sep) to 0.2.0, found on a main grid on 25 Sep. Checked with
+  `getComputedStyle`, which is the only thing that sees it.
+*/
+.RowCommands .RowCommands-table th.RowCommands-commandsHeader {
     z-index: 2;
 }
 
