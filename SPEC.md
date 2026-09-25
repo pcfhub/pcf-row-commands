@@ -386,7 +386,7 @@ it was written for.
 name of nothing but spaces), the rig — here and in `_template` — answers
 `null` for an empty column, and putting 0.2.1's read back fails five
 assertions with the form's own "Open null". Measured on a text column; an
-empty number, choice or lookup is modelled the same way and not watched.
+empty number, choice or lookup is modelled the same way and not watched. **Confirmed on the Accounts main grid the same day**: the nameless accounts read *this record*.
 
 ## Not verified
 
