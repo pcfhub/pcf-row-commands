@@ -352,7 +352,7 @@ first; without it the suite passes and the browser throws. A rig gap, noted for
 Nothing in this repository has been on a real Power App **except what is
 recorded above**. Every other platform answer comes from `dev/host.js`.
 
-**For 0.2.0, the walkthrough (W1–W8), on the Accounts test form:**
+**0.2.0's walkthrough (W1–W8) on the Accounts test form: all eight passed, 2026-09-25.** They are measured now, and they close three things this section carried: a cancelled confirmation resolves (W2), the command bar acts on the control's own checkboxes (W4), and a user whose roles allow no Delete is offered none (W8, the branch P1 could not reach as an administrator). What they did not reach follows the table.
 
 | # | Do | Expect |
 | --- | --- | --- |
