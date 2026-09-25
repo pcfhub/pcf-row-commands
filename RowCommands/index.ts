@@ -1,4 +1,8 @@
 import { IInputs, IOutputs } from './generated/ManifestTypes';
+// THROWAWAY, with probe.ts: the 0.1.8 probe build. Remove both before 0.2.0.
+import { probe } from './probe';
+
+const PROBE = true;
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
 type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
@@ -196,6 +200,10 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         this.applyHeight(context);
         this.applyPageSize(context, dataset);
         this.render(context, dataset);
+
+        if (PROBE) {
+            probe(context, dataset, this.container);
+        }
     }
 
     /**

@@ -7,7 +7,7 @@
   -->
   <control namespace="PCFHub"
            constructor="RowCommands"
-           version="0.1.7"
+           version="0.1.8"
            display-name-key="RowCommands_Name"
            description-key="RowCommands_Desc"
            control-type="standard">
@@ -56,7 +56,16 @@
       <type>SingleLine.Text</type>
     </type-group>
 
-    <data-set name="records" display-name-key="Records_DataSet_Name">
+    <!--
+      PROBE 0.1.8 (P2): the command bar, so the probe can ask whether an
+      existing subgrid gains it on upgrade and whether it acts on
+      setSelectedRecordIds. The view selector and quick find stay off: a
+      view the maker did not configure the URL role for is not one a user
+      should be able to swap in.
+    -->
+    <data-set name="records"
+              display-name-key="Records_DataSet_Name"
+              cds-data-set-options="displayCommandBar:true;displayViewSelector:false;displayQuickFind:false">
       <property-set name="urlField"
                     display-name-key="UrlField_Name"
                     description-key="UrlField_Desc"

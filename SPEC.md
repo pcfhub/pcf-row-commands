@@ -289,6 +289,28 @@ host, for the same control, after the same `trackContainerResize(true)` — and
 nothing in the type definitions distinguishes them, because both are `number`.
 Promoted to the skill; see `references/control-patterns.md`.
 
+## 0.2.0, measured before it is written
+
+0.2.0 closes the two gaps `docs/limitations.md` named — no selection or bulk
+commands, and buttons that ignore the user's privileges — and adds column
+resizing, which no control in the catalogue has. The 0.1.8 probe build asks the
+form what each of those rests on. **An answer that comes back the wrong way
+removes the feature that depends on it.** `RowCommands/probe.ts` is throwaway;
+it and its import go before 0.2.0.
+
+Import `RowCommands_0.1.8_probe_*.zip` over 0.1.7 as an upgrade, publish, hard
+reload, then from the console on a form carrying the control:
+
+| # | Ask | Rests on it | Answer |
+| --- | --- | --- | --- |
+| P1 | `__pcfRowCommandsProbe.all()` → `P1_privileges`. Present on a dataset control? What Delete (4) answers at each depth — as the admin, and as a user without Delete if one exists | Delete hidden by role | |
+| P2 | Look, before touching the form: did the **existing** subgrid gain a command bar on upgrade, with no form publish? And on the main grid (the table's view with this control) | the command bar, and whether 0.2.0 needs `docs/migration.md` | |
+| P3 | `select(3)`, then `selection()`; use the command bar on those three (**Assign** is safe — assign to yourself). Did the ribbon act on the three? Then `passes()`: did a pass arrive after the ribbon action, and does `selected` in it still hold the ids? `select(2)`, turn a page, `selection()` | the command bar half of selection; whether the platform keeps a selection across a fetch (the rig assumes not, unmeasured) | |
+| P4 | `all()` → `P4_viewId` on the subgrid and on the main grid, then reload and `all()` again: same id? `P4_storage`: read, write, read back, framed? | width storage key | |
+| P5 | `all()` → `P5_columns`: `visualSizeFactor` beside `renderedWidth`, and the width the view designer shows for one column | whether a saved width and the maker's width are the same unit | |
+| P6 | Press on the right edge of a column header, drag a little, release; `drag()` | resize on a subgrid at all | |
+| P7 | `confirm()` and press **Cancel**. Then `openFirst()`: change the name, save, close; compare `opened` and `settled` | two long-open *Not verified* items below | |
+
 ## Not verified
 
 Nothing in this repository has been on a real Power App **except what is
