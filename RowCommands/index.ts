@@ -827,8 +827,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * **The table's width is set, not only its minimum.** 0.1.x set
      * `min-width` and left `width: 100%` to stretch every column on a wide host
      * (×2.23 on a 2,490px main grid, P5), which a dragged width cannot survive:
-     * the browser would share the surplus into it too. `layout()` shares it out
-     * instead, to the columns nobody resized.
+     * the browser would share the surplus into it too. `layout()` stretches
+     * the columns itself, holds them there while one is dragged, and gives
+     * what a drag frees to the command column.
      */
     private relayout(): void {
         const drawn = this.drawn;

@@ -73,7 +73,7 @@ and skips the ones marked hidden. There is nothing to configure per column.
 | `isPrimary` | Its value names the row: it goes in each command's tooltip and in the confirmation the delete asks for. Falls back to the first visible column. A record whose primary value is empty shows a muted placeholder in that cell rather than a blank one, so it reads as a record with no name rather than as a row that failed to render. |
 | `disableSorting` | No sort control on that column, and no `aria-sort`. |
 | `isHidden` | The column is not drawn. |
-| `visualSizeFactor` | The column's width in pixels, as the view designer set it — measured on a real subgrid, where every column drew at exactly its factor. On a host wider than the columns, the columns nobody has resized share the extra room in proportion. A user's own dragged width replaces it for them. Canvas reports 0 for every column, and every column then gets the same default rather than none. |
+| `visualSizeFactor` | The column's width in pixels, as the view designer set it — measured on a real subgrid, where every column drew at exactly its factor. On a host wider than the columns, they share the extra room in proportion, and keep those widths while another column is dragged. A user's own dragged width replaces it for them. Canvas reports 0 for every column, and every column then gets the same default rather than none. |
 
 ## The commands column
 
@@ -111,6 +111,10 @@ separator a screen reader announces with its width.
 | Focus it, then ← / → | 16 pixels narrower or wider; with Shift, 64. |
 | Home, or double-click the edge | That column back to the view's width. |
 | **Reset column widths** in the pager | Every column back. Shown only while something is resized. |
+
+Resizing one column moves no other data column: narrow one and the room it
+frees goes to the command column, whose buttons stay right-aligned; widen one
+and the table scrolls. So the edge you are dragging stays under the pointer.
 
 Widths are stored in the browser's `localStorage`, keyed by table and view, and
 read back on the next visit. Where the browser refuses storage the resize still

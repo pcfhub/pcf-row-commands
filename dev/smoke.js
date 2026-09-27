@@ -823,9 +823,39 @@ const bulk = load('bulk');
     const dragged = widths.layout(base, [300, undefined, undefined, undefined, undefined], 308, 0, 2096);
 
     check(
-        'widths: a dragged column draws at exactly what it was dragged to, and the rest take the surplus',
+        'widths: a dragged column draws at exactly what it was dragged to, and the table still fills the host',
         dragged.columns[0] === 300 && sum(dragged.columns) + dragged.commands === 2096,
         JSON.stringify(dragged),
+    );
+
+    /*
+     * The pointer-drift fix. 0.2.x shared a drag's slack among the free
+     * columns, so narrowing the third column widened the first two, which
+     * pushed the third's own left edge right and slid its handle away from the
+     * pointer. Every other data column now holds its width, and the command
+     * column — after all of them — takes the slack.
+     */
+    const middle = widths.layout(base, [undefined, undefined, 100, undefined, undefined], 308, 0, 2096);
+
+    check(
+        'widths: narrowing a column moves no other data column, so its handle stays under the pointer',
+        [0, 1, 3, 4].every((index) => middle.columns[index] === wide.columns[index]),
+        JSON.stringify({ before: wide.columns, after: middle.columns }),
+    );
+
+    check(
+        'widths: the room it frees goes to the command column, and the table still fills the host',
+        middle.commands === 308 + wide.columns[2] - 100 && middle.table === 2096,
+        JSON.stringify(middle),
+    );
+
+    const widened = widths.layout(base, [undefined, undefined, 900, undefined, undefined], 308, 0, 2096);
+
+    check(
+        'widths: widening one leaves the others where they were too — the table scrolls instead',
+        [0, 1, 3, 4].every((index) => widened.columns[index] === wide.columns[index])
+            && widened.commands === 308 && widened.table > 2096,
+        JSON.stringify(widened),
     );
 
     const allDragged = widths.layout(base, [100, 100, 100, 100, 100], 308, 44, 2096);
@@ -1224,6 +1254,37 @@ check(
         'and a column resized there draws at its own number, not a stretched one',
         widthOf(dataHeaders(wide)[0]) === widths.nudge(widths.layout([200, 120, 150, 90, 180], [undefined, undefined, undefined, undefined, undefined], 308, 0, 2096).columns[0], 1, false),
         String(widthOf(dataHeaders(wide)[0])),
+    );
+}
+
+{
+    // The drift fix, through the real handle: a pointer drag on the third
+    // column of a wide host moves neither column before it.
+    const drift = bind({ width: 2096 });
+    const before = dataHeaders(drift).map(widthOf);
+    const commandsBefore = widthOf(drift.find('.RowCommands-commandsHeader'));
+    const handle = drift.findAll('.RowCommands-resizer')[2];
+    const pointer = (type, clientX) => ({ type, button: 0, clientX, pointerId: 1, preventDefault() {} });
+
+    handle.dispatchEvent(pointer('pointerdown', 1000));
+    handle.dispatchEvent(pointer('pointermove', 900));
+
+    const during = dataHeaders(drift).map(widthOf);
+
+    handle.dispatchEvent(pointer('pointerup', 900));
+
+    check(
+        'a drag narrower moves the dragged column by exactly the pointer, and no column before it',
+        during[2] === before[2] - 100 && during[0] === before[0] && during[1] === before[1]
+            && during[3] === before[3] && during[4] === before[4],
+        JSON.stringify({ before, during }),
+    );
+
+    check(
+        'and the command column takes what the drag freed',
+        widthOf(drift.find('.RowCommands-commandsHeader')) === commandsBefore + 100
+            && drift.find('table').style.width === '2096px',
+        String(widthOf(drift.find('.RowCommands-commandsHeader'))),
     );
 }
 

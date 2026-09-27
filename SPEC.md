@@ -405,6 +405,35 @@ name of nothing but spaces), the rig — here and in `_template` — answers
 assertions with the form's own "Open null". Measured on a text column; an
 empty number, choice or lookup is modelled the same way and not watched. **Confirmed on the Accounts main grid the same day**: the nameless accounts read *this record*.
 
+## The drag's edge drifted from the pointer
+
+Found porting resize to `pcf-data-table` 0.7.0, 2026-09-27, and fixed here
+after it. 0.2.0's `layout()` shared the slack a drag left among every column
+nobody had resized, so narrowing the third column widened the first two —
+which pushed the third's own left edge right, and its handle slid away from the
+pointer. The unit test written for the fix measured it on a 2,096px host: a
+100px narrowing of the third column pushed the first column from 483 to 572px
+and the second from 289 to 343px, so the dragged edge moved about 43px while
+the pointer moved 100.
+
+Now every column nobody resized keeps the width it drew before anything was
+dragged (0.1.x's proportional stretch, computed once from the base widths),
+and what a drag frees goes to the command column — after every data column, so
+nothing a drag can see moves. That is the rule 0.2.0 already had for the case
+where every column was resized; it now holds whenever anything is. Widening a
+column no longer takes room from the others either; the table scrolls.
+
+Measured in `dev/harness.html` at a 1,503px box with a real mouse: pointer
+811 → 711, the column 233 → 133, the handle ending at 707–715 under a pointer
+at 711, the columns either side unchanged, the command column 308 → 408, and
+the table still 1,503px. W6 above ("the others fill the rest") describes 0.2.0;
+the command column fills it now.
+
+Row Commands measures its box once per render and has no observer, so the
+feedback loop that crashed `pcf-data-table`'s first build on a shrink-to-fit
+form section cannot run away here — and the table still always fills the room
+it was laid out in, which is what closed it there.
+
 ## Not verified
 
 Nothing in this repository has been on a real Power App **except what is
