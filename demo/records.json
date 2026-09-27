@@ -125,5 +125,14 @@
                 "websiteurl": "https://wingtip.example.com/analytics"
             }
         }
-    ]
+    ],
+    "dataverse": {
+        "tables": {
+            "account": {
+                "entitySet": "accounts",
+                "primaryId": "accountid",
+                "primaryName": "name"
+            }
+        }
+    }
 }

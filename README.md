@@ -106,26 +106,28 @@ declaration and neither does `openDatasetItem`.
 
 ## On the hub
 
-`demo.fidelity` is **`limited`**, and three separate things put it there — any
-one of them alone would have been enough.
+`demo.fidelity` is **`limited`**, and since 2026-09-27 the reason is the one
+every dataset control on the hub shares: the harness seeds a single page and
+reports no next or previous page, so the pager is inert and the page-size
+property has nothing to demonstrate.
 
-The commands are the control, and two of the three cannot run in a sandbox.
-Opening a record needs a Dataverse to open it in. Delete needs `context.webAPI`
-to remove the row and `openConfirmDialog` to ask first, and the demo harness has
-neither — so the button is not drawn there, exactly as it is not drawn in a
-canvas app. The third reason is the one every dataset control on the hub shares:
-the harness seeds a single page and reports no next or previous page, so the
-pager is inert and the page-size property has nothing to demonstrate.
+The commands themselves run. `demo/records.json` carries a stand-in Dataverse
+behind the view, and that is what the control's model-driven test asks for —
+an organisation URL — so Delete is drawn. Pressing it asks through
+`openConfirmDialog`, which the demo draws in the page, and a confirmation calls
+`webAPI.deleteRecord` and refreshes, so the row leaves the table; Delete
+selected does the same for a selection. Open calls `openForm`, and with no form
+behind the demo the event log names the record instead. Nothing leaves the
+browser. What cannot be shown is a refused delete: the stand-in accepts every
+request, so the error dialog never opens.
 
-What *is* real there is which commands each row offers and why. The address is
+What was always real is which commands each row offers and why. The address is
 read from the bound column and checked before a button appears, so the record
 with no website has no link button — that is the control's actual logic running,
 not a rendering of it.
 
-Four presets: the shipped defaults, a links-only configuration, a shorter page,
-and one that switches `showDelete` on and visibly changes nothing. The last is
-there deliberately — a preset that demonstrates the degradation is worth more
-than one that hides it.
+Five presets: the shipped defaults, selection with column resizing, a
+links-only configuration, Delete with its confirmation, and a shorter page.
 
 
 

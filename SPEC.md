@@ -178,20 +178,37 @@ reading a slot nothing wrote to and reporting the absence as proof.
 
 ## Demo
 
-`limited`, and three separate things put it there — any one would have been
-enough. Opening a record needs a Dataverse to open it in. Delete needs
-`webAPI` and a confirmation dialog, and the harness has neither, so the button
-is not drawn there — which is exactly what a canvas app shows. And the harness
-seeds one page with no next or previous, so the pager is inert.
+`limited`, and since 2026-09-27 only because the harness seeds one page with no
+next or previous, so the pager is inert.
 
-What *is* real there is which commands each row offers: the address is read from
-the bound column and checked before a button appears, so the record with no
-website has no link button. That is the control's logic running rather than a
-picture of it.
+Until then there were three reasons. Opening a record had nothing to open it in,
+and Delete needed `webAPI` and a confirmation dialog the harness did not have,
+so the button was not drawn — the canvas behaviour, demonstrated by a preset
+that switched `showDelete` on and visibly changed nothing. The hub has since
+gained a confirm dialog drawn in the page and an `openForm` that names the
+record in the event log, and `demo/records.json` now carries a `dataverse`
+section — only the account table — so the harness reports an organisation URL,
+which is what `modelDrivenHost` tests for. Delete is drawn, asks, deletes
+through the stand-in's `deleteRecord` and refreshes; Delete selected confirms
+once and deletes one row after another.
 
-The fourth preset switches `showDelete` on and visibly changes nothing. That is
-deliberate — a preset demonstrating the degradation is worth more than one
-hiding it.
+**The first try left the deleted row on screen, and the harness was wrong, not
+the control.** The harness re-rendered *inside* `dataset.refresh()`, so the
+control's own render at the end of the delete chain — with the dataset it still
+held — landed after the fresh one and painted the row back. On a form
+`refresh()` is a fetch and the new `updateView` arrives later; the hub now
+renders a refresh on a later task to match. Checked with 0.2.2's published
+bundle against the edited harness: Cancel said "Nothing was deleted.", a
+confirmed Delete took Contoso off and the pager to "1–7 of 7", Delete selected
+removed two rows with one confirmation, and Open named Tailspin Toys' form.
+
+What cannot be shown is a refused delete: the stand-in accepts every request,
+so the error dialog never opens.
+
+What was always real is which commands each row offers: the address is read
+from the bound column and checked before a button appears, so the record with
+no website has no link button. That is the control's logic running rather than
+a picture of it.
 
 ## What a real form showed
 
