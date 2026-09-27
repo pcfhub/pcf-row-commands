@@ -434,6 +434,9 @@ feedback loop that crashed `pcf-data-table`'s first build on a shrink-to-fit
 form section cannot run away here — and the table still always fills the room
 it was laid out in, which is what closed it there.
 
+**Promoted to the skill** (pcfhub-controls 0.62.0) under *Resizing a column* in
+`references/dataset-writing-and-layout.md`, with a review-checklist item.
+
 ## Not verified
 
 Nothing in this repository has been on a real Power App **except what is
