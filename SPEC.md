@@ -178,8 +178,30 @@ reading a slot nothing wrote to and reporting the absence as proof.
 
 ## Demo
 
-`limited`, and since 2026-09-27 only because the harness seeds one page with no
-next or previous, so the pager is inert.
+`mocked` since 2026-09-27. Before that it was `limited`, and in its last day
+only because the harness seeded one page with no next or previous, so the pager
+was inert. pcfhub/pcfhub#51 gave the harness a view that keeps its page, sort
+and selection and applies them on the next fetch.
+
+It was checked with 0.2.3's published bundle against that harness:
+
+- Account name sorted ascending, then descending;
+- the Compact preset paged "1–4 of 8", then "5–8 of 8", and back (checked in pcfhub/pcfhub#51);
+- two ticks survived a property edit, with the fixture re-sent as a clone, and
+  a theme switch;
+- Delete selected confirmed once for both, called `deleteRecord` twice and
+  refreshed once, leaving "1–6 of 6" still in the descending order.
+
+A sort clears the selection. That is `sortBy`'s own choice, not the harness's:
+a new order names rows the reader may no longer see.
+
+What stays out of reach doesn't justify `limited`:
+
+- Open names the record in the event log rather than opening a form.
+- A refused delete never happens.
+- The fixture's addresses are placeholders.
+
+Each is a limitation of the stand-in, not a feature that is stubbed.
 
 Until then there were three reasons. Opening a record had nothing to open it in,
 and Delete needed `webAPI` and a confirmation dialog the harness did not have,

@@ -106,10 +106,16 @@ declaration and neither does `openDatasetItem`.
 
 ## On the hub
 
-`demo.fidelity` is **`limited`**, and since 2026-09-27 the reason is the one
-every dataset control on the hub shares: the harness seeds a single page and
-reports no next or previous page, so the pager is inert and the page-size
-property has nothing to demonstrate.
+`demo.fidelity` is **`mocked`**: everything the control does runs, against a
+fixture rather than Dataverse.
+
+It was `limited` until the hub's demo harness could page. Since
+pcfhub/pcfhub#51 the harness keeps a dataset's page, sort and selection between
+renders and applies them on the next fetch, as a form does. So now:
+
+- a header click reorders the rows;
+- the Compact preset's four-row page gives two pages;
+- a tick survives a re-render.
 
 The commands themselves run. `demo/records.json` carries a stand-in Dataverse
 behind the view, and that is what the control's model-driven test asks for —

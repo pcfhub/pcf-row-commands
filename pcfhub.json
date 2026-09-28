@@ -44,7 +44,7 @@
     ]
   },
   "demo": {
-    "fidelity": "limited",
+    "fidelity": "mocked",
     "bundle": "out/controls/RowCommands/bundle.js",
     "styles": [
       "out/controls/RowCommands/css/RowCommands.css"
@@ -54,8 +54,8 @@
       "Open calls context.navigation.openForm, as on a form, and refreshes the view when the form closes. There is no form behind the demo, so the event log under the demo names the record that would have opened. The invokedRecordId, invokedCommand and invokeCount outputs still update, which is the value a canvas app would react to, and it is the same thing the control reports on a real form.",
       "Delete works against the demo's stand-in Dataverse. The control asks first with context.navigation.openConfirmDialog, drawn inside the demo, and only on Delete calls context.webAPI.deleteRecord and refreshes, so the row leaves the table; Cancel leaves it alone and says so. Nothing leaves the browser: Reset or a reload puts the rows back. What cannot be shown is a refused delete — the stand-in accepts every request, so the error dialog a real form opens on a failure never appears here. In a canvas app, which reports no organisation URL, the control draws no Delete at all.",
       "The website addresses in the fixture are example.com placeholders, so following one leads nowhere. What is real is which rows offer the link and which do not: the address is read from a bound column, checked against http and https, and a row whose column is empty gets no button. One record in the fixture has no address for that reason.",
-      "Everything is on one page. The harness seeds a single page and reports no next or previous page, so the pager is drawn and inert — paging, sorting and the page-size property need a real view behind them. That is why this demo is limited rather than full, and it is the same ceiling every dataset control on the hub is under.",
-      "Selection works here as a checkbox column and a bar, and with Delete switched on the bar offers Delete selected: one confirmation for the lot, then one deleteRecord per row, one after another, and a single refresh at the end. The subgrid command bar that acts on a selection on a real form is part of the form, not of the control, so it is not here. And the harness keeps no selection between renders, so a tick can clear when the demo re-renders the control.",
+      "Paging and sorting work against the fixture. A header click sorts the whole fixture on the next fetch, the way a real view sorts on the server across every page, and goes back to page one. The Compact preset asks for four rows a page, so its eight rows make two pages. The page size is still a request: a real view may clamp it, and the ceiling is 250.",
+      "Selection works here as a checkbox column and a bar, and a tick survives a re-render: change a property or the theme and it stays. With Delete switched on the bar offers Delete selected: one confirmation for the lot, then one deleteRecord per row, one after another, and a single refresh at the end. A sort or a new page size clears the selection on purpose, because it names rows the reader may no longer see. The subgrid command bar that acts on a selection on a real form is part of the form, not of the control, so it is not here.",
       "Resizing works for real. Drag a column edge, or tab to it and press the arrow keys. Whether the width is remembered across a reload depends on whether this page may use the browser's storage; where it may not, the width lasts until the page is reloaded, which is the control's real behaviour on a browser that refuses storage."
     ],
     "presets": [
