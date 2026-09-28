@@ -187,7 +187,7 @@ function bind(options = {}) {
         notifications: () => notifications,
         outputs: () => (instance.getOutputs ? instance.getOutputs() : {}),
         find: (selector) => container.querySelector(selector),
-        findAll: (selector) => container.querySelectorAll(selector),
+        findAll: (selector) => Array.from(container.querySelectorAll(selector)),
         /** Let the platform catch up after something the control asked for. */
         settle: () => {
             driven = host.drive(instance, handle, 10);
@@ -214,11 +214,11 @@ function bind(options = {}) {
 const rowsOf = (view) => {
     const body = view.container.querySelector('tbody');
 
-    return body ? body.children : [];
+    return body ? Array.from(body.children) : [];
 };
 
 /** One row's command buttons, in the order the control put them in. */
-const commandsIn = (row) => row.querySelectorAll('.RowCommands-command');
+const commandsIn = (row) => Array.from(row.querySelectorAll('.RowCommands-command'));
 
 /** A named command on the nth row, or `null` when the control did not draw it. */
 const commandOn = (view, index, name) => {
@@ -624,9 +624,9 @@ check(
  */
 check(
     'and no other empty cell is filled in — it is the row identity, not every gap',
-    namelessRow.querySelectorAll('td').filter((cell) => cell.textContent === 'resx:RowCommands_Untitled')
+    Array.from(namelessRow.querySelectorAll('td')).filter((cell) => cell.textContent === 'resx:RowCommands_Untitled')
         .length === 1,
-    namelessRow.querySelectorAll('td').map((cell) => `"${cell.textContent}"`).join(' '),
+    Array.from(namelessRow.querySelectorAll('td')).map((cell) => `"${cell.textContent}"`).join(' '),
 );
 
 check(
