@@ -198,7 +198,6 @@ a new order names rows the reader may no longer see.
 What stays out of reach doesn't justify `limited`:
 
 - Open names the record in the event log rather than opening a form.
-- A refused delete never happens.
 - The fixture's addresses are placeholders.
 
 Each is a limitation of the stand-in, not a feature that is stubbed.
@@ -224,8 +223,18 @@ bundle against the edited harness: Cancel said "Nothing was deleted.", a
 confirmed Delete took Contoso off and the pager to "1–7 of 7", Delete selected
 removed two rows with one confirmation, and Open named Tailspin Toys' form.
 
-What cannot be shown is a refused delete: the stand-in accepts every request,
-so the error dialog never opens.
+**A refused delete shows since 2026-09-28.** pcfhub/pcfhub#53 let a fixture
+declare faults, and this one refuses a delete of `a0003`, Northwind Traders,
+with a plugin-style sentence. Narrowed to one record, so every other Delete
+still works. Checked with 0.2.3's published bundle against that harness, before
+the push:
+
+- Delete on Northwind Traders, confirmed, opened "Northwind Traders could not
+  be deleted.", with "This account has open invoices, so it cannot be deleted."
+  under Details, and the row stayed;
+- Delete selected over Contoso Logistics and Northwind Traders deleted Contoso
+  and opened "Some of the selected records could not be deleted.", listing
+  "Northwind Traders: This account has open invoices, so it cannot be deleted."
 
 What was always real is which commands each row offers: the address is read
 from the bound column and checked before a button appears, so the record with

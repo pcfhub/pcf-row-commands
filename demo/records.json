@@ -133,6 +133,14 @@
                 "primaryId": "accountid",
                 "primaryName": "name"
             }
-        }
+        },
+        "faults": [
+            {
+                "operation": "delete",
+                "table": "account",
+                "id": "a0003",
+                "message": "This account has open invoices, so it cannot be deleted."
+            }
+        ]
     }
 }

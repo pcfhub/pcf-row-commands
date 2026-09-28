@@ -124,8 +124,9 @@ an organisation URL — so Delete is drawn. Pressing it asks through
 `webAPI.deleteRecord` and refreshes, so the row leaves the table; Delete
 selected does the same for a selection. Open calls `openForm`, and with no form
 behind the demo the event log names the record instead. Nothing leaves the
-browser. What cannot be shown is a refused delete: the stand-in accepts every
-request, so the error dialog never opens.
+browser. A refused delete shows too: the fixture declares a fault
+(pcfhub/pcfhub#53) that refuses Northwind Traders, so deleting it opens the
+platform's error dialog with the reason under Details, and the row stays.
 
 What was always real is which commands each row offers and why. The address is
 read from the bound column and checked before a button appears, so the record
