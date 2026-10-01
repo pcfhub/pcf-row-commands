@@ -3,6 +3,7 @@
   "slug": "pcf-row-commands",
   "name": "Row Commands",
   "tagline": "Open, launch or delete from the row itself — select rows to delete together, and resize the columns.",
+  "summary": "Puts up to three buttons at the end of every row of a view, with no ribbon customisation: **Open** goes to the record's form, **Open link** follows an address held in a column you map, and **Delete** asks for confirmation first.\n\n- Delete is off by default, and offered only to users whose roles allow it\n- Optional row selection, to delete several rows with one confirmation\n- Resizable columns, remembered per user and view",
   "category": "data",
   "hosts": [
     "canvas",
