@@ -688,6 +688,55 @@ check(
     'delete withheld, open still offered',
 );
 
+/*
+ * **Open on canvas, which 0.2.3 got wrong.** `openForm` is published there and
+ * refuses from the call, so the presence test that chose the route chose the
+ * one that throws — out of a click handler, uncaught. Found by PCFHub's demo
+ * the day it could run as a canvas screen (2026-10-01).
+ *
+ * The route on canvas is the dataset's own `openDatasetItem`, which raises the
+ * component's `OnSelect`. The press is reported first either way.
+ */
+let canvasOpenError = null;
+
+try {
+    press(commandOn(onCanvas, 0, 'open'));
+} catch (error) {
+    canvasOpenError = `${error.constructor.name}: ${error.message}`;
+}
+
+check(
+    'Open on canvas does not throw, though openForm is there and refuses',
+    canvasOpenError === null,
+    canvasOpenError || 'no error left the handler',
+);
+
+check(
+    'it takes the dataset’s own route, which is the one canvas has, and never calls openForm',
+    callsLike(onCanvas, 'openDatasetItem').length === 1 && callsLike(onCanvas, 'navigation.openForm').length === 0,
+    onCanvas.calls().join(' | '),
+);
+
+check(
+    'and reports the press, which is what a canvas OnChange reads',
+    onCanvas.outputs().invokedCommand === 'open' && onCanvas.outputs().invokeCount === 1,
+    JSON.stringify(onCanvas.outputs()),
+);
+
+check(
+    'rig: canvas publishes openForm and refuses it from the call',
+    typeof onCanvas.handle.context.navigation.openForm === 'function'
+        && (() => {
+            try {
+                onCanvas.handle.context.navigation.openForm({});
+                return false;
+            } catch (error) {
+                return /not implemented/i.test(error.message);
+            }
+        })(),
+    'present, and throws',
+);
+
 const noDialogs = bind({ inputs: { showDelete: true }, dialogs: 'absent' });
 
 check(

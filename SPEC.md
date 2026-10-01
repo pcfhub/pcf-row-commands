@@ -114,9 +114,11 @@ opens in place, and it does not need to: the control is torn down and mounted
 fresh on the way back.
 
 **Presence is per method, not per bag.** `context.navigation` is typed
-non-optional, and inside it `openForm` and `openUrl` are everywhere, `openFile`
-is model-driven only, and the three dialogs are a model-driven affordance canvas
-does not have. A control that checks `context.navigation` once and then calls
+non-optional, and inside it `openUrl` is everywhere, while `openForm`,
+`openFile` and the three dialogs are model-driven only — *and published on
+canvas all the same*, where they refuse from the call (see *0.2.4* below; this
+paragraph said `openForm` was "everywhere" until then, and the code believed
+it). A control that checks `context.navigation` once and then calls
 four methods through it passes on the host it was written on and throws on the
 next one. Every call site here is guarded independently, and `dev/host.js` can
 now remove each independently.
@@ -468,7 +470,35 @@ it was laid out in, which is what closed it there.
 **Promoted to the skill** (pcfhub-controls 0.62.0) under *Resizing a column* in
 `references/dataset-writing-and-layout.md`, with a review-checklist item.
 
+## 0.2.4: Open threw on canvas
+
+`openRecord` chose its route with `typeof navigation.openForm === 'function'`.
+That is true on canvas, where the method is published and refuses from the
+call — the same finding that moved Delete to `modelDrivenHost` in 0.2.0, not
+applied to the command next to it. So Open called a method canvas can only
+refuse, and the throw left the click handler uncaught. The outputs were already
+written, so an `OnChange` formula still ran.
+
+**The suite could not see it, because the rig left `openForm` out on canvas**:
+the presence test failed here and passed on the platform. `dev/host.js` now
+publishes `openForm` and `openFile` on canvas and throws from each, and the two
+assertions that cover Open there fail against 0.2.3.
+
+Found by PCFHub's demo on 2026-10-01, the day it could be run as a canvas
+screen: it logs an error a control does not catch.
+
+Open on a host with no organisation URL now takes `dataset.openDatasetItem`,
+which raises `OnSelect` in a canvas app, and a host that answers with one and
+still throws from `openForm` falls back the same way.
+
 ## Not verified
+
+- **That `openForm` throws on canvas.** The probe found it published and did
+  not call it — it would have taken the screen. 0.2.4 no longer calls it there,
+  so the answer changes nothing the control does. Proving it: a canvas app and
+  a `try`.
+- **That `openDatasetItem` raises `OnSelect` on this control in a canvas app.**
+  Documented, and what `docs/canvas.md` now says; not pressed on a real one.
 
 Nothing in this repository has been on a real Power App **except what is
 recorded above**. Every other platform answer comes from `dev/host.js`.

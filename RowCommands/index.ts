@@ -1648,6 +1648,21 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * when `context.navigation` is absent or does not carry the method. The
      * fallback is not a lesser version of the same thing: it just cannot
      * refresh.
+     *
+     * **And on a canvas app the fallback is the route.** `openForm` is
+     * published there — `typeof` says it is a function — and it is documented
+     * model-driven only, like every surface a host probe found present and
+     * refusing on a real canvas app (2026-09-22). Until 0.2.4 that presence
+     * test was the only gate, so Open called a method canvas can only refuse,
+     * and the throw came out of the click handler uncaught: PCFHub's demo
+     * showed it the day it could be run as a canvas screen. `openDatasetItem`
+     * is the documented canvas route — it raises the component's `OnSelect` —
+     * so that is what a host with no organisation gets, decided by
+     * `modelDrivenHost`'s answer rather than by the method being there.
+     *
+     * The `try` is for the host this cannot foresee: one that answers with an
+     * organisation URL and still throws from the call. A press that reports
+     * itself and then falls back is a smaller wrong than an uncaught error.
      */
     private openRecord(context: ComponentFramework.Context<IInputs>, dataset: DataSet, id: string): void {
         const record = dataset.records[id];
@@ -1660,13 +1675,23 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
         const openForm = context.navigation?.openForm;
 
-        if (typeof openForm !== 'function') {
+        if (typeof openForm !== 'function' || !modelDrivenHost(context)) {
             dataset.openDatasetItem(record.getNamedReference());
             return;
         }
 
-        void openForm
-            .call(context.navigation, { entityName: dataset.getTargetEntityType(), entityId: id })
+        let opening: Promise<unknown>;
+
+        try {
+            opening = Promise.resolve(
+                openForm.call(context.navigation, { entityName: dataset.getTargetEntityType(), entityId: id }),
+            );
+        } catch {
+            dataset.openDatasetItem(record.getNamedReference());
+            return;
+        }
+
+        void opening
             .then(() => {
                 if (this.disposed) {
                     return;

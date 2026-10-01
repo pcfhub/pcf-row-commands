@@ -82,10 +82,18 @@ If(
 
 ## Opening a record
 
-**Open** calls the dataset's own `openDatasetItem` here, which a canvas app may
-do nothing with. The output fires either way, so the formula above is the
-reliable route — see [Model-driven apps](model-driven.md) for what the same
+**Open** calls the dataset's own `openDatasetItem` here, which raises the
+control's **OnSelect**. The output fires either way, so the `OnChange` formula
+above works too — see [Model-driven apps](model-driven.md) for what the same
 button does there.
+
+:::callout{type=warning}
+**Before 0.2.4, Open threw an error in a canvas app.** A canvas app publishes
+`navigation.openForm` and refuses it from the call, and the control chose its
+route by whether the method was there. The outputs were written first, so an
+`OnChange` formula still ran, but the error left the control's click handler
+uncaught. Upgrade to 0.2.4.
+:::
 
 ## Selection and column widths
 

@@ -2676,8 +2676,21 @@
                 },
             };
 
-            // Model-driven only, on the same rule as `openFile` below.
-            if (o.host !== 'canvas') {
+            /*
+             * **Published on canvas, where it refuses from the call.** This rig
+             * left `openForm` out there until 0.2.4, which is the friendlier
+             * host: a `typeof openForm === 'function'` guard failed here and
+             * passed on a real canvas app, where a host probe found the method
+             * present (2026-09-22). It was not called by that probe — it would
+             * have taken the screen — so the refusal is modelled on the
+             * surfaces that were: a synchronous `Method not implemented.`
+             */
+            if (o.host === 'canvas') {
+                navigation.openForm = function () {
+                    log('navigation.openForm (canvas: not implemented)');
+                    throw new Error('openForm: Method not implemented.');
+                };
+            } else {
                 /**
                  * Logged in full, **both arguments**, because the options
                  * *are* the behaviour: whether `useQuickCreateForm` was set,
@@ -2699,10 +2712,14 @@
                 };
             }
 
-            // Documented model-driven apps only, and a canvas host has no
-            // switch to say otherwise — `openFile: true` under `host: 'canvas'`
-            // would be a host that does not exist.
-            if (o.openFile && o.host !== 'canvas') {
+            // Documented model-driven apps only — and published on canvas
+            // anyway, where it refuses from the call, as `openForm` does above.
+            if (o.openFile && o.host === 'canvas') {
+                navigation.openFile = function () {
+                    log('navigation.openFile (canvas: not implemented)');
+                    throw new Error('openFile: Method not implemented.');
+                };
+            } else if (o.openFile) {
                 navigation.openFile = function (file, fileOptions) {
                     log('navigation.openFile', {
                         fileName: (file || {}).fileName,
