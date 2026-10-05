@@ -2,6 +2,8 @@
 
 Open a record, launch a URL, or delete it with a confirm, from the row itself.
 
+> **Reference example · built with AI.** This control was written with AI (Claude) and tested on a live Dataverse form; its code has not been reviewed line by line. It is published as a worked example and is not maintained — read the source and [`SPEC.md`](SPEC.md) (what was measured on the form) before you use it. Fixes are not guaranteed.
+
 [![Build](https://github.com/pcfhub/pcf-row-commands/actions/workflows/build.yml/badge.svg)](https://github.com/pcfhub/pcf-row-commands/actions/workflows/build.yml)
 [![Release](https://github.com/pcfhub/pcf-row-commands/actions/workflows/release.yml/badge.svg)](https://github.com/pcfhub/pcf-row-commands/actions/workflows/release.yml)
 
@@ -10,8 +12,6 @@ Open a record, launch a URL, or delete it with a confirm, from the row itself.
 Documentation lives on [PCFHub](https://pcfhub.dev/components/pcf-row-commands), built
 from the `docs/` directory in this repository. Edit the Markdown here; the hub
 recompiles it.
-
-
 
 ## What it does
 
@@ -47,8 +47,6 @@ is `navigation.openConfirmDialog`, and a host without it does not get the delete
 command — the confirmation is the safeguard, so a host that cannot show one has
 no business deleting. A cancelled confirmation is not an error and is not
 reported through the outputs: nothing happened.
-
-
 
 ## Properties
 
@@ -102,8 +100,6 @@ required="false" />`, for the delete. `required="false"` is load-bearing —
 than a degraded button. Nothing else is declared; `navigation` needs no feature
 declaration and neither does `openDatasetItem`.
 
-
-
 ## On the hub
 
 `demo.fidelity` is **`mocked`**: everything the control does runs, against a
@@ -135,8 +131,6 @@ not a rendering of it.
 
 Five presets: the shipped defaults, selection with column resizing, a
 links-only configuration, Delete with its confirmation, and a shorter page.
-
-
 
 ## Install
 

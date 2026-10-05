@@ -8,6 +8,10 @@ order: 1
 
 Open a record, launch a URL, or delete it with a confirm, from the row itself.
 
+:::callout{type=warning}
+**Reference example · built with AI.** This control was written with AI (Claude) and tested on a live Dataverse form; its code has not been reviewed line by line. It is published as a worked example and is not maintained — read the source and [SPEC.md](https://github.com/pcfhub/pcf-row-commands/blob/main/SPEC.md) (what was measured on the form) before you use it. Fixes are not guaranteed.
+:::
+
 ::image{src=media/screenshot.png alt="A view of accounts with two rows ticked, a bar reading 2 selected with Delete selected and Clear selection, and Open, Open link and Delete on each row" zoom}
 
 ## Why this one

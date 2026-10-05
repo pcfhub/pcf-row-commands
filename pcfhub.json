@@ -19,6 +19,8 @@
     "bulk-delete",
     "resizable-columns"
   ],
+  "supportLevel": "reference",
+  "builtWith": "ai",
   "control": {
     "namespace": "PCFHub",
     "constructor": "RowCommands",
