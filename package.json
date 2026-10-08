@@ -18,7 +18,8 @@
     "lint": "eslint RowCommands --ext .ts,.tsx",
     "bump": "node scripts/version.mjs",
     "release": "node scripts/release.mjs",
-    "shots": "node dev/shots.js"
+    "shots": "node dev/shots.js",
+    "demo-check": "node dev/demo-check.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
