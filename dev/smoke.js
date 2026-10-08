@@ -2144,6 +2144,22 @@ check(
         `${narrowish.container.className} ${narrowish.find('.RowCommands-commandsHeader').style.width} | ${roomy.container.className}`,
     );
 
+    const withOpen = bind({ inputs: { commands: COMMANDS }, contextInfo: FORM, width: 2400 });
+    const withoutOpen = bind({ inputs: { commands: COMMANDS, hideOpen: true }, contextInfo: FORM, width: 2400 });
+    const plain = bind({ inputs: { hideOpen: true }, width: 2400 });
+
+    await ready(withOpen);
+    await ready(withoutOpen);
+    await ready(plain);
+
+    const commandsColumn = (view) => widthOf(view.find('.RowCommands-commandsHeader'));
+
+    check(
+        'with 0.3.0 commands the column is sized from the buttons drawn — hiding Open narrows it; without them it is 0.2.x’s, Open or not',
+        commandsColumn(withoutOpen) < commandsColumn(withOpen) && commandsColumn(plain) >= 308,
+        `${commandsColumn(withOpen)} with Open, ${commandsColumn(withoutOpen)} without, ${commandsColumn(plain)} plain`,
+    );
+
     press(on(commanded, 'Fabrikam', 'approve'));
     await ready(commanded);
 

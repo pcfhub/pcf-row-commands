@@ -715,8 +715,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
         const names = columns.map((column) => column.name);
         const allocated = context.mode.allocatedWidth;
-        const commandsWidth = (): number =>
-            (this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH) + this.extraCommandsWidth(context, dataset, getString);
+        const commandsWidth = (): number => this.commandsWidth(context, dataset, getString);
         let commands = commandsWidth();
 
         /*
@@ -1878,29 +1877,55 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
     }
 
     /**
-     * The width the command column needs for the commands 0.3.0 adds, on top
-     * of the three it always had room for — estimated from each label, since
-     * nothing here can measure text, and the cell wraps when the guess is
-     * short rather than clipping.
+     * The command column's width.
+     *
+     * **With none of 0.3.0's commands, exactly what 0.2.x drew** — room for the
+     * three built-ins whether or not each is on, so an upgrade moves nothing.
+     *
+     * **With any of them, the buttons this host actually draws**, each
+     * estimated from its label, since nothing here can measure text (the cell
+     * wraps when the guess is short rather than clipping). Measured on the
+     * Accounts main grid 2026-10-08 (W2): reserving the built-ins' room there —
+     * Open only, no link column, no Delete — left 280 of 530 pixels empty
+     * while the view's own columns scrolled away under it.
      */
-    private extraCommandsWidth(
+    private commandsWidth(
         context: ComponentFramework.Context<IInputs>,
         dataset: DataSet,
         getString: (id: string) => string,
     ): number {
-        const labels: string[] = this.customCommands(context, dataset).map((command) => labelFor(command, languageOf(context)));
+        const extras: string[] = this.customCommands(context, dataset).map((command) => labelFor(command, languageOf(context)));
 
         if (this.stateOffered(context, dataset)) {
             const activate = getString('RowCommands_Activate');
             const deactivate = getString('RowCommands_Deactivate');
 
-            labels.push(activate.length > deactivate.length ? activate : deactivate);
+            extras.push(activate.length > deactivate.length ? activate : deactivate);
         }
 
-        return labels.reduce(
-            (sum, text) => sum + (this.compact ? COMPACT_COMMAND : 36 + Math.ceil(text.length * 7.5)),
-            0,
-        );
+        if (extras.length === 0) {
+            return this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH;
+        }
+
+        const labels: string[] = [];
+
+        if (!asBoolean(context.parameters.hideOpen.raw, false)) {
+            labels.push(getString('RowCommands_Open'));
+        }
+
+        if (this.urlColumn(dataset) && typeof context.navigation?.openUrl === 'function') {
+            labels.push(getString('RowCommands_Launch'));
+        }
+
+        if (this.canOfferDelete(context, dataset)) {
+            labels.push(getString('RowCommands_Delete'));
+        }
+
+        labels.push(...extras);
+
+        return this.compact
+            ? COMMANDS_PADDING_COMPACT + labels.length * COMPACT_COMMAND
+            : COMMANDS_PADDING + labels.reduce((sum, text) => sum + 36 + Math.ceil(text.length * 7.5), 0);
     }
 
     /**
@@ -3037,6 +3062,10 @@ const GLYPH_CUSTOM: Record<IconName, string> = {
 
 /** A compact command: a 32px button and a 4px gap. */
 const COMPACT_COMMAND = 36;
+
+/** The command cell's own padding around its buttons, labelled and compact. */
+const COMMANDS_PADDING = 32;
+const COMMANDS_PADDING_COMPACT = 44;
 
 /** A glyph drawn with lines rather than fill — the 0.3.0 commands. */
 function strokedIcon(d: string): SVGSVGElement {
