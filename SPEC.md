@@ -622,6 +622,14 @@ system *Accounts* table, Row Commands 0.3.2 imported from the Insert pane's
 | **A column headed "urlField"** | The unmapped URL role listed as a column, empty. **Fixed in 0.3.3**: an unmapped role is not drawn |
 | **Studio banners** | "getClientUrl: Method not implemented." in the editor (the host check, caught), and "getEntityMetadata: Method not implemented." once Activate/Deactivate was on. **The second fixed in 0.3.3** (not asked on a host that cannot write); the first is the price of the canvas check, documented in `docs/canvas.md`. Neither showed in the preview |
 
+**0.3.3, checked the same day** in a second new app (the first was never
+saved; a Studio session open before an import keeps the old bundle), with 0.3.3
+imported from the *Code* tab onto *Accounts*, Page size left at 0, Show Activate
+and Deactivate on: **"1–25 of 71"** in the preview; columns Account Name, Main
+Phone, Address 1: City, Primary Contact and the commands — **no "urlField"**;
+the editor's only banner was **getClientUrl** (expanded: one message); no
+Activate or Deactivate drawn. All three fixes hold.
+
 ## Not verified
 
 - **0.3.0: `onRowCommand` bound at OnLoad, in a person's browser.** The
