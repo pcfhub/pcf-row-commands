@@ -557,6 +557,49 @@ the *My Active Accounts* main grid):
 | W7 | **Your commands** = `cll_/nope.json`. | "the web resource cll_/nope.json was not found…" above the table; Open etc. still there. |
 | W8 | As a user whose roles allow no Write on account, if one exists. | No Logistics, no Activate/Deactivate. |
 
+**Walked through 2026-10-08 by Claude in the built-in browser** (the user
+signed in), with pp-prodev's `ppdev` for the bindings and a Script web resource
+`cll_/rowcommands.json` (`accounting` sets `industrycode: 1`, `escalate` press-
+only) created through the Web API — `ppdev webres push` skips a `.json` file.
+Three builds, because two steps found something:
+
+- **W1 ✓ (0.3.0)**: the main grid ran the 0.3.0 bundle (47,213 bytes, the
+  pack's) and drew Open only, as 0.2.5 did.
+- **W2 ✓ after a fix**: Accounting on 24 of 25 rows, no Escalate, Deactivate on
+  each, no Industry or Status column added. **But the command column was 530px
+  of a 1,135px control** — room reserved for Open link and Delete, which that
+  view does not draw — and the view's own columns scrolled away under it. 0.3.1
+  sizes the column from the buttons drawn once a 0.3.0 command is on (320px
+  there); with none, 0.2.x's width stands.
+- **W3 ✓ (0.3.1)**: Accounting on "asdasdasdsad" → `industrycode` null → 1,
+  "Accounting: asdasdasdsad was updated.", the row then Open/Deactivate only.
+  Put back to null.
+- **W4 ✓**: Deactivate on "asdasdasdasdasdas" → 1/2, "… was deactivated.", gone
+  from *My Active Accounts*. Reactivated through the Web API.
+- **W5 ✓ after a fix**: three ticked, one confirmation, "Updating 1 of 3…" to
+  "3 of 3…", "3 records were updated.", all three 1/2; the selection emptied
+  once the refresh took the rows away. **The dialog read "Deactivate selected
+  will be applied to 3 records."** — 0.3.2 says "3 records will be
+  deactivated." (verified, then Cancel: "Nothing was changed.", both still
+  Active). Also seen: the app's own command bar offers Activate/Deactivate for
+  a selection too; `docs/model-driven.md` says so.
+- **W6 ✓ (0.3.1)**: two `cll_account` rows ("RC030 walkthrough A/B") made for
+  the subgrid; inline JSON `{"commands":[{"name":"escalate",…}]}` on the form;
+  Escalate drawn; `addOnOutputChange` heard `escalate`, the row's id,
+  `invokeCount` 1. `addEventHandler('onRowCommand')` bound beside it heard
+  nothing — P1 again.
+- **W7 ✓ (0.3.2)**: `cll_/nope.json` → "Your commands: the web resource
+  cll_/nope.json was not found. Check the name, and that it is published.", as
+  an error; Open and Deactivate carried on.
+- **W8 not run**: no user without Write on account in cll365.
+
+Two publishes in the middle were refused with 429 while Microsoft's own
+`msdynce_KnowledgeManagement*` solutions imported and uninstalled themselves;
+the next import's *publish all* carried them.
+
+Left in place on cll365 for the user: the view's and the subgrid's 0.3.x
+settings, the web resource, and the two `cll_account` rows.
+
 ## Not verified
 
 - **0.3.0: `onRowCommand` bound at OnLoad, in a person's browser.** The
