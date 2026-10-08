@@ -138,6 +138,7 @@ const TEMPLATES = {
     RowCommands_StateFailed: '{0} could not be changed.',
     RowCommands_DeactivateSelected: 'Deactivate selected',
     RowCommands_UpdateSelectedText: '{0} will be applied to {1} records.',
+    RowCommands_DeactivateSelectedText: '{0} records will be deactivated.',
     RowCommands_UpdatingProgress: 'Updating {0} of {1}',
     RowCommands_UpdatedMany: '{0} records were updated.',
     RowCommands_UpdatedSome: '{0} of {1} updated; {2} failed.',
@@ -2399,7 +2400,7 @@ check(
 
     check(
         'Deactivate selected skips the inactive row, asks once naming the two it will change, and writes them one by one',
-        callsLike(choosing, 'navigation.openConfirmDialog').join().indexOf('Deactivate selected will be applied to 2 records.') !== -1
+        callsLike(choosing, 'navigation.openConfirmDialog').join().indexOf('2 records will be deactivated.') !== -1
             && callsLike(choosing, 'webAPI.updateRecord').map((call) => JSON.parse(call.slice(call.indexOf('(') + 1, -1)).id).join() === 'a01,a02',
         `${callsLike(choosing, 'navigation.openConfirmDialog').join()} | ${callsLike(choosing, 'webAPI.updateRecord').join(' | ')}`,
     );

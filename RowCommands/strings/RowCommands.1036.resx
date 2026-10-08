@@ -179,6 +179,12 @@
   <data name="RowCommands_UpdateSelectedText" xml:space="preserve">
     <value>{0} sera appliqué à {1} enregistrements.</value>
   </data>
+  <data name="RowCommands_ActivateSelectedText" xml:space="preserve">
+    <value>{0} enregistrements seront activés.</value>
+  </data>
+  <data name="RowCommands_DeactivateSelectedText" xml:space="preserve">
+    <value>{0} enregistrements seront désactivés.</value>
+  </data>
   <data name="RowCommands_UpdatingProgress" xml:space="preserve">
     <value>Mise à jour de {0} sur {1}…</value>
   </data>

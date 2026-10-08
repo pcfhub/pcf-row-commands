@@ -72,6 +72,11 @@ view does not need a Status column: the control asks for it, and does not draw
 it. A view of active records loses a row on the refresh after Deactivate, which
 is the point.
 
+The app's own command bar also offers **Activate** and **Deactivate** for selected
+rows, on a main grid and — since 0.2.0 turned it on — on a subgrid. This
+control's are on each row, and its selection bar's skip the rows already in that
+state and report on the outputs; use whichever a form needs.
+
 ## Deleting
 
 :::callout{type=warning}

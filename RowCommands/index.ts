@@ -2188,7 +2188,11 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         void navigation
             .openConfirmDialog({
                 title: text,
-                text: getString('RowCommands_UpdateSelectedText').replace('{0}', text).replace('{1}', String(targets.length)),
+                // Activate/Deactivate in their own words (W5: the shared sentence read "Deactivate selected will be
+                // applied to 3 records."); a maker's command by its label, which is all there is.
+                text: update.kind === 'state'
+                    ? getString(update.target === 1 ? 'RowCommands_DeactivateSelectedText' : 'RowCommands_ActivateSelectedText').replace('{0}', String(targets.length))
+                    : getString('RowCommands_UpdateSelectedText').replace('{0}', text).replace('{1}', String(targets.length)),
                 confirmButtonLabel: getString('RowCommands_CommandConfirm'),
                 cancelButtonLabel: getString('RowCommands_DeleteCancel'),
             })

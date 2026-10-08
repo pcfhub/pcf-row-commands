@@ -179,6 +179,12 @@
   <data name="RowCommands_UpdateSelectedText" xml:space="preserve">
     <value>{0} wird auf {1} Datensätze angewendet.</value>
   </data>
+  <data name="RowCommands_ActivateSelectedText" xml:space="preserve">
+    <value>{0} Datensätze werden aktiviert.</value>
+  </data>
+  <data name="RowCommands_DeactivateSelectedText" xml:space="preserve">
+    <value>{0} Datensätze werden deaktiviert.</value>
+  </data>
   <data name="RowCommands_UpdatingProgress" xml:space="preserve">
     <value>{0} von {1} wird aktualisiert…</value>
   </data>

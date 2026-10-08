@@ -225,6 +225,8 @@
         RowCommands_ActivateSelected: "Activate selected",
         RowCommands_DeactivateSelected: "Deactivate selected",
         RowCommands_UpdateSelectedText: "{0} will be applied to {1} records.",
+        RowCommands_ActivateSelectedText: "{0} records will be activated.",
+        RowCommands_DeactivateSelectedText: "{0} records will be deactivated.",
         RowCommands_UpdatingProgress: "Updating {0} of {1}…",
         RowCommands_UpdatedMany: "{0} records were updated.",
         RowCommands_UpdatedSome: "{0} of {1} updated; {2} failed.",

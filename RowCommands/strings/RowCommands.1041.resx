@@ -179,6 +179,12 @@
   <data name="RowCommands_UpdateSelectedText" xml:space="preserve">
     <value>{0} を {1} 件のレコードに適用します。</value>
   </data>
+  <data name="RowCommands_ActivateSelectedText" xml:space="preserve">
+    <value>{0} 件のレコードをアクティブ化します。</value>
+  </data>
+  <data name="RowCommands_DeactivateSelectedText" xml:space="preserve">
+    <value>{0} 件のレコードを非アクティブ化します。</value>
+  </data>
   <data name="RowCommands_UpdatingProgress" xml:space="preserve">
     <value>{1} 件中 {0} 件目を更新しています…</value>
   </data>
