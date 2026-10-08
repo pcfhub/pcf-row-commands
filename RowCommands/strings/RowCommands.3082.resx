@@ -119,6 +119,12 @@
   <data name="InvokeCount_Desc" xml:space="preserve">
     <value>Cuántos comandos se han pulsado. Aumenta con cada pulsación, de modo que pulsar el mismo comando dos veces son dos eventos y no uno.</value>
   </data>
+  <data name="OnRowCommand_Name" xml:space="preserve">
+    <value>Al ejecutar un comando de fila</value>
+  </data>
+  <data name="OnRowCommand_Desc" xml:space="preserve">
+    <value>Se genera al pulsar un comando que ha definido. Un script de formulario lo enlaza con addEventHandler en esta subcuadrícula.</value>
+  </data>
   <data name="RowCommands_Loading" xml:space="preserve">
     <value>Cargando registros…</value>
   </data>

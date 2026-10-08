@@ -119,6 +119,12 @@
   <data name="InvokeCount_Desc" xml:space="preserve">
     <value>Wie viele Befehle ausgelöst wurden. Der Wert steigt bei jedem Auslösen, sodass zweimal derselbe Befehl zwei Ereignisse ergibt statt eines.</value>
   </data>
+  <data name="OnRowCommand_Name" xml:space="preserve">
+    <value>Bei Zeilenbefehl</value>
+  </data>
+  <data name="OnRowCommand_Desc" xml:space="preserve">
+    <value>Wird ausgelöst, wenn ein von Ihnen definierter Befehl gedrückt wird. Ein Formularskript bindet es mit addEventHandler an dieses Unterraster.</value>
+  </data>
   <data name="RowCommands_Loading" xml:space="preserve">
     <value>Datensätze werden geladen…</value>
   </data>

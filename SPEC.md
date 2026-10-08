@@ -491,6 +491,36 @@ Open on a host with no organisation URL now takes `dataset.openDatasetItem`,
 which raises `OnSelect` in a canvas app, and a host that answers with one and
 still throws from `openForm` falls back the same way.
 
+## 0.3.0, measured before it is written
+
+Picked by demand on 2026-10-08: downloads 26 → 35 in four days, the only
+control on the hub that moved by more than four, and modern commanding has no
+per-row command location for a maker to use instead. 0.3.0 adds **commands the
+maker defines** — each one sets a column on the row, raises an `onRowCommand`
+event a form script can bind, and writes the outputs — read from a web resource
+(or inline JSON), and **Activate / Deactivate** on each row and over a
+selection.
+
+The 0.2.5 probe build asks the form what each of those rests on. **An answer
+that comes back the wrong way removes the feature that depends on it.**
+`RowCommands/probe.ts` and `dev/probe-check.js` are throwaway; they, the import
+and the call in `index.ts` go before 0.3.0. The probe declares the
+`<event name="onRowCommand">` 0.3.0 would ship, and nothing else new.
+
+Import `RowCommands_0.2.5_probe_*.zip` over 0.2.4 as an upgrade, publish, hard
+reload, then from the console on a form whose subgrid carries the control (and
+once on the Accounts main grid with it):
+
+| # | Ask | Rests on it | Answer |
+| --- | --- | --- | --- |
+| P1 | `__pcfRowCommandsProbe.controls()` → the subgrid's name and whether it has `addEventHandler`. Then `const c = Xrm.Page.getControl('<name>'); c.addEventHandler('onRowCommand', (p) => { console.log('P1 handler', p); p.ping('from the handler'); });` and `__pcfRowCommandsProbe.raise()`, then `heard()`. | the event — the form-script half of every custom command. **Never measured in this catalogue for any control**: `pcf-form-action-button` lists it as *Not verified* | |
+| P2 | `all()` → `P2_host` on the **main grid**: `contextInfo` without `entityId`, and whether `onRowCommand` is in the event bag there | hiding an event-only command where no form script can bind it | |
+| P3 | `await __pcfRowCommandsProbe.resource()` on the subgrid and on the main grid (it picks the first Script web resource the Web API lists, and fetches a missing name beside it) | commands read from a web resource by a **dataset** control (Code Editor measured a field control) | |
+| P4 | `all()` → `P4_statecode` on a view **without** Status in its columns, then `addState()`, wait for the redraw, `all()` again | Activate/Deactivate per row needs each row's state | |
+| P5 | `await states()`; then on a **test** account `await setState(<row>, 1)`, look at the row, `await setState(<row>, 0)` | the state pair through `updateRecord`, and `DefaultStatus` from the dataset's metadata | |
+| P6 | `all()` → `P6_privileges` (Write is 3); `await write(<row>, { <a choice column>: <a value> })`; if a column is field-secured, `await write(<row>, { <it>: ... })` for the refusal's shape | a set-column command hidden by role; what a refused write says | |
+| P7 | With P1's handler bound, also `c.addOnOutputChange(() => console.log('P7 output change', c.getOutputs()))`, then `raise()` once more | the double fire: the event and the outputs both reaching one form script | |
+
 ## Not verified
 
 - **That `openForm` throws on canvas.** The probe found it published and did

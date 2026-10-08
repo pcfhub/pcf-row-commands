@@ -119,6 +119,12 @@
   <data name="InvokeCount_Desc" xml:space="preserve">
     <value>実行されたコマンドの回数。実行のたびに増えるため、同じコマンドを 2 回押すと 1 件ではなく 2 件のイベントになります。</value>
   </data>
+  <data name="OnRowCommand_Name" xml:space="preserve">
+    <value>行コマンド時</value>
+  </data>
+  <data name="OnRowCommand_Desc" xml:space="preserve">
+    <value>定義したコマンドが押されたときに発生します。フォーム スクリプトは、このサブグリッドの addEventHandler でバインドします。</value>
+  </data>
   <data name="RowCommands_Loading" xml:space="preserve">
     <value>レコードを読み込んでいます…</value>
   </data>

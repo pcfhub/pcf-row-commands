@@ -119,6 +119,12 @@
   <data name="InvokeCount_Desc" xml:space="preserve">
     <value>Nombre de commandes activées. La valeur augmente à chaque activation : activer deux fois la même commande produit deux événements, pas un.</value>
   </data>
+  <data name="OnRowCommand_Name" xml:space="preserve">
+    <value>Sur commande de ligne</value>
+  </data>
+  <data name="OnRowCommand_Desc" xml:space="preserve">
+    <value>Déclenché lorsqu'une commande que vous avez définie est utilisée. Un script de formulaire s'y abonne avec addEventHandler sur cette sous-grille.</value>
+  </data>
   <data name="RowCommands_Loading" xml:space="preserve">
     <value>Chargement des enregistrements…</value>
   </data>

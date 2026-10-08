@@ -119,6 +119,12 @@
   <data name="InvokeCount_Desc" xml:space="preserve">
     <value>How many commands have been pressed. It increases on every press, so pressing the same command twice is two events rather than one.</value>
   </data>
+  <data name="OnRowCommand_Name" xml:space="preserve">
+    <value>On row command</value>
+  </data>
+  <data name="OnRowCommand_Desc" xml:space="preserve">
+    <value>Raised when a command you defined is pressed. A form script binds it with addEventHandler on this subgrid.</value>
+  </data>
   <data name="RowCommands_Loading" xml:space="preserve">
     <value>Loading records…</value>
   </data>

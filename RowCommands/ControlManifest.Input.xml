@@ -7,7 +7,7 @@
   -->
   <control namespace="PCFHub"
            constructor="RowCommands"
-           version="0.2.4"
+           version="0.2.5"
            display-name-key="RowCommands_Name"
            description-key="RowCommands_Desc"
            control-type="standard">
@@ -208,6 +208,18 @@
               description-key="InvokeCount_Desc"
               of-type="Whole.None"
               usage="output" />
+
+    <!--
+      PROBE (0.2.5): the event 0.3.0's maker-defined commands raise. A custom
+      `<event>`, not `<common-event>`: a form script binds by the event's own
+      name with `addEventHandler`, and OnSelect/OnChange are reserved names a
+      custom event may not take. Whether a form script can bind one on a
+      *subgrid* is SPEC.md P1 — never measured in this catalogue, for any
+      control.
+    -->
+    <event name="onRowCommand"
+           display-name-key="OnRowCommand_Name"
+           description-key="OnRowCommand_Desc" />
 
     <resources>
       <code path="index.ts" order="1" />

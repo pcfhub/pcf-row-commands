@@ -2,6 +2,8 @@ import { IInputs, IOutputs } from './generated/ManifestTypes';
 import { BulkItem, BulkResult, runSequential } from './bulk';
 import { canDeleteByRole } from './privileges';
 import { pageState, prune, sameSet, toggle, togglePage } from './selection';
+// THROWAWAY: the 0.2.5 probe for 0.3.0. Delete with probe.ts before 0.3.0.
+import { probe } from './probe';
 import {
     Layout,
     MAX_WIDTH,
@@ -276,6 +278,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const dataset = context.parameters.records;
 
         this.latest = { context, dataset };
+
+        // THROWAWAY: the 0.2.5 probe for 0.3.0.
+        probe(context, dataset, (id, command) => this.report(id, command as CommandName));
 
         this.applyTheme(context);
         this.applyWidth(context);
