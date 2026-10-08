@@ -477,7 +477,14 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
          * need to know how big a page is — reading it is not the same as
          * asking for it.
          */
-        if (raw === null || raw === undefined) {
+        /*
+         * **A canvas app hands an unset Whole.None input over as `0`**, not
+         * `null` — measured 2026-10-08 in Studio: a fresh Row Commands showed
+         * *Page size 0* in the property panel, and the control clamped that
+         * to one row per page ("1–1 of 71"). No maker means 0 rows a page,
+         * so 0 and below are unset here, as `null` is on a form.
+         */
+        if (raw === null || raw === undefined || raw <= 0) {
             /*
              * `0` means "the host did not say", not "one row per page".
              *
@@ -559,8 +566,15 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         // `isHidden` and `order` are the maker's decisions in the view
         // designer. A table that ignores either looks broken to whoever set
         // them.
+        /*
+         * Not drawn: the columns this control asked for itself, and **a role
+         * nobody mapped**. A canvas app lists the URL role as a column even
+         * when the maker gave it none — headed "urlField", empty on every row
+         * (measured 2026-10-08 in Studio). A mapped role carries the column's
+         * own display name, never the role's alias.
+         */
         const columns = (dataset.columns ?? [])
-            .filter((column) => !column.isHidden && !this.requested.has(column.name))
+            .filter((column) => !column.isHidden && !this.requested.has(column.name) && !unmappedRole(column))
             .sort((a, b) => a.order - b.order);
 
         if (columns.length === 0) {
@@ -1771,7 +1785,14 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * a case gets "deactivated" into Resolved.
      */
     private loadStateOptions(context: ComponentFramework.Context<IInputs>, dataset: DataSet): void {
-        if (!asBoolean(context.parameters.showStateCommands?.raw, false)) {
+        /*
+         * Only on a host that could act on the answer. A canvas app publishes
+         * `getEntityMetadata` and throws from it, and Studio shows the caught
+         * throw as an error banner ("getEntityMetadata: Method not
+         * implemented.", measured 2026-10-08) — for a question whose answer
+         * could not have drawn a button there anyway.
+         */
+        if (!asBoolean(context.parameters.showStateCommands?.raw, false) || !this.canWrite(context)) {
             return;
         }
 
@@ -2840,6 +2861,11 @@ function formRecordId(context: ComponentFramework.Context<IInputs>): string | nu
     const id = (context.mode as unknown as { contextInfo?: { entityId?: unknown } }).contextInfo?.entityId;
 
     return typeof id === 'string' && id !== '' ? id : null;
+}
+
+/** A property-set role the maker left unmapped, which a canvas app still lists as a column. */
+function unmappedRole(column: Column): boolean {
+    return column.alias === 'urlField' && (column.displayName === column.alias || column.name === column.alias);
 }
 
 /** The user's language, for a maker's label given per language. */

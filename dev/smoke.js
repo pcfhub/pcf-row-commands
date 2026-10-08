@@ -2356,6 +2356,43 @@ check(
             && on(stateOnCanvas, 'Fabrikam', 'deactivate') === null,
     );
 
+    /* -------------------------------------- what a canvas app taught 0.3.3 */
+
+    const zeroPage = bind({ inputs: { pageSize: 0 }, host: 'canvas' });
+
+    await ready(zeroPage);
+
+    check(
+        'a page size of 0 is unset, as a canvas app hands an untouched Whole.None over: no setPageSize, and the host’s rows drawn',
+        callsLike(zeroPage, 'setPageSize').length === 0 && rowsOf(zeroPage).length === 5,
+        `${callsLike(zeroPage, 'setPageSize').join()} | ${rowsOf(zeroPage).length} rows`,
+    );
+
+    const cannotWrite = bind({ inputs: { showStateCommands: true }, webAPI: false });
+
+    await ready(cannotWrite);
+
+    check(
+        'a host that cannot write is not asked for the table’s Status options (canvas throws, and Studio shows the throw)',
+        callsLike(cannotWrite, 'utils.getEntityMetadata').length === 0 && on(cannotWrite, 'Fabrikam', 'deactivate') === null,
+        callsLike(cannotWrite, 'utils.getEntityMetadata').join(),
+    );
+
+    const unmapped = bind({
+        host: 'canvas',
+        columns: fixture.columns.map((column) => (column.alias === 'urlField'
+            ? { ...column, name: 'urlField', displayName: 'urlField' }
+            : column)),
+    });
+
+    await ready(unmapped);
+
+    check(
+        'an unmapped URL role, which a canvas app lists as a column headed "urlField", is not drawn',
+        dataHeaders(unmapped).every((th) => th.textContent.indexOf('urlField') === -1) && dataHeaders(unmapped).length >= 3,
+        dataHeaders(unmapped).map((th) => th.textContent).join(', '),
+    );
+
     const viewWithoutStatus = bind({
         inputs: { showStateCommands: true },
         columns: fixture.columns.filter((column) => column.name !== 'statecode'),

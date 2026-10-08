@@ -138,7 +138,9 @@ function onLoad(executionContext) {
 The control also raises a custom event, **`onRowCommand`**, with `{ command,
 recordIds, entityName, refresh }` — but on a model-driven subgrid, when
 measured, a handler added with `addEventHandler("onRowCommand", …)` was never
-called. It is declared and raised for a host that delivers it; do not rely on it.
+called. It is declared and raised for a host that delivers it, and **a canvas app
+does**: there it is the control's **onRowCommand** behaviour property, and it
+ran at every press when measured — see [Canvas apps](canvas.md).
 
 ## Columns
 

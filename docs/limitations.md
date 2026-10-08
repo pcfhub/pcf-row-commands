@@ -59,7 +59,9 @@ Each of these is a constraint that was chosen, not a defect waiting on a fix.
   The control raises `onRowCommand`, but on a model-driven subgrid, when
   measured, a handler added with `addEventHandler` was never called. The
   outputs are what works: `addOnOutputChange` on the subgrid fires for every
-  command, and `getOutputs()` says which. See [API reference](api.md).
+  command, and `getOutputs()` says which. See [API reference](api.md). In a canvas
+  app it is the other way round in speed: **onRowCommand** runs at the press,
+  and the outputs arrive a moment later.
 
 - **A command that only reports a press is not drawn on a main grid.** There
   is no form there and no script to listen, so the button would do nothing.

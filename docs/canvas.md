@@ -97,7 +97,27 @@ If(RowCommands1.InvokedCommand = "escalate",
     Patch(Claims, LookUp(Claims, Claim = GUID(RowCommands1.InvokedRecordId)), { Escalated: true }))
 ```
 
-**Show Activate and Deactivate** does nothing in canvas, for the same reason.
+**Or use the `onRowCommand` property** — in a canvas app the control's custom
+event is a behaviour property beside `OnSelect` and `OnChange`, and it runs at
+the press, every press, for your commands only (not for Open). Measured in
+Studio's preview on 2026-10-08: it ran immediately, while the outputs — and so
+`OnChange` — arrived a second or more later. Use `onRowCommand` when the
+reaction should be instant, and the outputs when you need the row's id:
+
+```powerfx
+// onRowCommand
+Notify("Escalating…", NotificationType.Information)
+```
+
+**Show Activate and Deactivate** and **Show the delete command** do nothing in
+canvas, for the same reason, and the property panel shows **Page size** as 0
+until you set it — 0 means "use the app's own page size".
+
+**Studio may show a red banner** — "getClientUrl: Method not implemented." —
+while you edit. A canvas app publishes that method and throws from it; the
+control asks it once to learn that it is in a canvas app, and catches the
+answer. It is the editor reporting the caught throw, and it did not appear in
+the preview.
 
 ## Opening a record
 

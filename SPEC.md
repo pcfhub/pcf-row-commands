@@ -600,6 +600,28 @@ the next import's *publish all* carried them.
 Left in place on cll365 for the user: the view's and the subgrid's 0.3.x
 settings, the web resource, and the two `cll_account` rows.
 
+## 0.3.2 in a canvas app, measured
+
+2026-10-08, by Claude in Studio in the built-in browser (pp-prodev's
+`canvas-dev`; no canvas MCP in the session, so Studio was driven by clicks): a
+new throwaway app **"Row Commands canvas test"** (not in a solution), the
+system *Accounts* table, Row Commands 0.3.2 imported from the Insert pane's
+*Code* tab, a label showing `invokedCommand`, `invokedRecordId`,
+`invokeCount` and three counters set by `OnChange`, `onRowCommand` and
+`OnSelect`. Your commands: an `escalate` (press-only, `selection`) and an
+`approve` (`set`). In the preview (Play):
+
+| What | Answer |
+| --- | --- |
+| Open | **Raised OnSelect** (the dataset's `openDatasetItem`) — closes the *Not verified* item below |
+| Escalate on a row | **`onRowCommand` ran at the press** (the custom `<event>` is a behaviour property in canvas, beside OnSelect/OnChange) — **the opposite of a model-driven subgrid** (P1). The outputs arrived a second or more later: `escalate`, the row's id, `invokeCount` +1, and **OnChange ran once per press** — closes "the outputs reach a canvas OnChange" below |
+| Escalate on the selection bar | `escalateSelected` with the id, `onRowCommand` +1 |
+| Approve (`set`), Delete, Activate/Deactivate | Not drawn, with *Show the delete command* and *Show Activate and Deactivate* both on |
+| Your commands = `cll_/rowcommands.json` | "a web resource can only be read in a model-driven app…" above the table; Open stays |
+| **Page size** | **0 in the property panel by default** — the control drew one row per page ("1–1 of 71"). **Fixed in 0.3.3**: 0 and below are unset |
+| **A column headed "urlField"** | The unmapped URL role listed as a column, empty. **Fixed in 0.3.3**: an unmapped role is not drawn |
+| **Studio banners** | "getClientUrl: Method not implemented." in the editor (the host check, caught), and "getEntityMetadata: Method not implemented." once Activate/Deactivate was on. **The second fixed in 0.3.3** (not asked on a host that cannot write); the first is the price of the canvas check, documented in `docs/canvas.md`. Neither showed in the preview |
+
 ## Not verified
 
 - **0.3.0: `onRowCommand` bound at OnLoad, in a person's browser.** The
@@ -608,14 +630,13 @@ settings, the web resource, and the two `cll_account` rows.
   shape; and a user whose roles allow Write only on their own records.
 - **0.3.0: a table whose Status has more than two values** (case) on a form —
   the rule hides the commands; asserted in the rig only.
-- **0.3.0: commands in a canvas app** — press-only commands are drawn for
-  `OnChange`; not run in a canvas app.
+- ~~**0.3.0: commands in a canvas app**~~ — run 2026-10-08, see *0.3.2 in a canvas app*. A published app, as opposed to Studio's preview, was not run.
 - **0.3.0: the phone client** with labelled custom commands.
 - **That `openForm` throws on canvas.** The probe found it published and did
   not call it — it would have taken the screen. 0.2.4 no longer calls it there,
   so the answer changes nothing the control does. Proving it: a canvas app and
   a `try`.
-- **That `openDatasetItem` raises `OnSelect` on this control in a canvas app.**
+- ~~**That `openDatasetItem` raises `OnSelect` on this control in a canvas app.**~~ Measured 2026-10-08 — see *0.3.2 in a canvas app*.
   Documented, and what `docs/canvas.md` now says; not pressed on a real one.
 
 Nothing in this repository has been on a real Power App **except what is
@@ -639,7 +660,7 @@ recorded above**. Every other platform answer comes from `dev/host.js`.
 - **That `of-type-group` works on a dataset `property-set` in canvas.** If the
   common reading is right, **Open link** is model-driven only and
   `docs/canvas.md` is wrong about it. Proving it: bind the role in a canvas app.
-- **That the outputs reach a canvas `OnChange`**, and that `InvokeCount` makes a
+- ~~**That the outputs reach a canvas `OnChange`**~~ (measured 2026-10-08: they do, a moment after the press), and that `InvokeCount` makes a
   repeated press fire it. Proving it: two identical presses and a `Notify()`.
 - **That the platform's error dialog shows `details`** as the type
   documentation describes. A bulk delete with failures puts every failed record
