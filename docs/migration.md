@@ -1,18 +1,32 @@
 ---
-title: Migrating to 0.2.0
-description: What an upgrade from 0.1.x changes on its own, and what to do about it.
+title: Migrating
+description: What an upgrade changes on its own, and what to do about it — 0.3.0 and 0.2.0.
 appliesTo: ">=0.2.0"
 order: 9
 ---
 
-# Migrating to 0.2.0
+# Migrating
+
+## To 0.3.0
+
+**Nothing changes on its own.** The two new properties — **Your commands** and
+**Show Activate and Deactivate** — arrive empty and off, so every form and view
+draws exactly what it drew before, and no new permission is asked for: the Web
+API and Utility features 0.2.0 declared are the ones 0.3.0 uses.
+
+One output changes what it can hold: **Invoked command** can now also be
+`activate`, `deactivate`, a name you give a command, and each of those with
+`Selected` after it. A formula or form script that treats any value it does not
+know as Open should check the value instead.
+
+## To 0.2.0
 
 Nothing you configured changes meaning. Every 0.1.x setting reads the same, and
 the two new ones — **Show row selection** and **Lock column widths** — arrive set
 so that a form looks as it did. Two things change without being asked, and one
 permission is new.
 
-## What changed on its own
+### What changed on its own
 
 **Subgrids gain the command bar.** 0.2.0 turns on the subgrid's own command bar,
 because it acts on the rows this control selects. The platform reads that from
@@ -30,7 +44,7 @@ One difference is visible on a host much wider than the view's columns: the
 command column no longer stretches along with the data columns, so the room goes
 to the data.
 
-## What to do
+### What to do
 
 :::steps
 1. **Expect the import to ask for *Utility*.** It is new, optional, and used only

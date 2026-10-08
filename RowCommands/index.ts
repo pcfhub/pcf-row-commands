@@ -61,6 +61,9 @@ const STATUS_TIMEOUT_MS = 6000;
 const COMMANDS_WIDTH = 308;
 const COMMANDS_WIDTH_COMPACT = 152;
 
+/** The most of the control's width a labelled command column may take: 60%. */
+const MAX_COMMANDS_SHARE = 0.6;
+
 /** The selection column: a 20px checkbox and the cell's padding. Never stretched. */
 const SELECT_WIDTH = 44;
 
@@ -711,9 +714,26 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         }
 
         const names = columns.map((column) => column.name);
-        const commands = (this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH) + this.extraCommandsWidth(context, dataset, getString);
-        const fixed = selectable ? SELECT_WIDTH : 0;
         const allocated = context.mode.allocatedWidth;
+        const commandsWidth = (): number =>
+            (this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH) + this.extraCommandsWidth(context, dataset, getString);
+        let commands = commandsWidth();
+
+        /*
+         * Since 0.3.0 a row can carry the maker's commands too, and labelled
+         * they can outgrow the control: three on the hub's 640px demo took the
+         * whole width and the data columns scrolled away under them. **The
+         * command column never takes more than half the control** — past that,
+         * the labels go, exactly as they do below `COMPACT_BELOW`, and every
+         * button still names itself and its row to a screen reader.
+         */
+        if (!this.compact && typeof allocated === 'number' && allocated > 0 && commands > allocated * MAX_COMMANDS_SHARE) {
+            this.compact = true;
+            this.container.classList.add('RowCommands--compact');
+            commands = commandsWidth();
+        }
+
+        const fixed = selectable ? SELECT_WIDTH : 0;
 
         if (selectable) {
             head.appendChild(this.selectAllCell(dataset, ids, enabled, getString));

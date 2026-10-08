@@ -31,6 +31,25 @@ two checkboxes and one column mapping, and no ribbon customisation anywhere.
   is offered only where the host can do both halves — and, since 0.2.0, only to
   a user whose security roles allow deleting from the table at all.
 
+## New in 0.3.0
+
+- **Commands of your own.** Describe them in JSON — in the **Your commands**
+  property, or in a web resource it names — and each becomes a button on every
+  row. A command either **sets columns on the row** (*Approve* sets Approval to
+  Approved, in one update, after asking first if you say so) or **reports the
+  press** for a form script or a canvas formula to act on. A row that already
+  holds the values a command would write is not offered it. Mark a command for
+  the selection and it runs over the ticked rows too.
+- **Activate and Deactivate.** Turn on **Show Activate and Deactivate** and an
+  active row offers Deactivate, an inactive one Activate, and the selection bar
+  offers both — skipping the rows already in that state.
+- **Every command says what it did on the outputs**, the channel a form script
+  and a canvas formula both read. See [API reference](api.md).
+
+::image{src=media/screenshot-commands.png alt="Two rows ticked; the bar offers Activate selected, Deactivate selected and Mark as Logistics; each row has Open, Open link, Deactivate or Activate, Mark as Logistics and Credit hold, and a row already in Logistics with credit on hold has neither" zoom}
+
+Nothing changes on an upgrade until you turn these on.
+
 ## New in 0.2.0
 
 - **Select rows, and delete them together.** Turn on **Show row selection** and
@@ -60,10 +79,11 @@ behaviour rather than a broken one. See [Limitations](limitations.md).
 ## What it works with
 
 :::callout{type=info}
-**Model-driven apps get all three commands.** Canvas apps and custom pages get
-**Open** and **Open link**; **Delete** is not available there, because canvas
-has no `context.webAPI` to delete through and no platform dialog to confirm
-with. Power Pages is not supported.
+**Model-driven apps get every command.** Canvas apps and custom pages get
+**Open**, **Open link** and your commands that only report a press; **Delete**,
+commands that write and **Activate/Deactivate** are not available there,
+because canvas has no `context.webAPI` to write through and no platform dialog
+to confirm with. Power Pages is not supported.
 :::
 
 The control binds a dataset — a view, a subgrid, or a canvas table — and reads

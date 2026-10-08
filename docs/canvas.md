@@ -57,7 +57,7 @@ Notify(
 | Output | What it holds |
 | --- | --- |
 | `InvokedRecordId` | The row whose command was pressed |
-| `InvokedCommand` | `open`, `url`, `delete` or `deleteSelected` — the last two model-driven only |
+| `InvokedCommand` | `open`, `url`, `delete` or `deleteSelected` — the last two model-driven only — or the `name` of one of your commands (`…Selected` over a selection) |
 | `InvokeCount` | How many presses there have been |
 
 :::callout{type=info}
@@ -79,6 +79,25 @@ If(
         { SelectedId: RowCommands1.InvokedRecordId })
 )
 ```
+
+## Your own commands in canvas
+
+A canvas app runs the commands that **report a press** — the ones with no
+`set` — and none that write, since canvas has no Web API for the control to
+write through. Put the JSON in **Your commands** itself (a formula has no
+length limit, and a canvas app cannot fetch a web resource) and act in
+`OnChange`:
+
+```powerfx
+// Your commands
+"{ ""commands"": [ { ""name"": ""escalate"", ""label"": ""Escalate"", ""icon"": ""flag"" } ] }"
+
+// OnChange
+If(RowCommands1.InvokedCommand = "escalate",
+    Patch(Claims, LookUp(Claims, Claim = GUID(RowCommands1.InvokedRecordId)), { Escalated: true }))
+```
+
+**Show Activate and Deactivate** does nothing in canvas, for the same reason.
 
 ## Opening a record
 

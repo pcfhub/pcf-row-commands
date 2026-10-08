@@ -59,7 +59,7 @@ the form opens, not as it closes.
 Because of 0.2.0. The command bar acts on the rows this control selects, so it
 is switched on — and the platform reads that from the installed control, not
 from the form, so it appeared on every subgrid when 0.2.0 was imported. See
-[Migrating to 0.2.0](migration.md).
+[Migrating](migration.md).
 
 ## Why did my ticks disappear when I turned the page?
 

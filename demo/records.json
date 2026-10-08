@@ -36,11 +36,19 @@
             "visualSizeFactor": 90
         },
         {
+            "name": "industrycode",
+            "displayName": "Industry",
+            "dataType": "OptionSet",
+            "alias": "industrycode",
+            "order": 4,
+            "visualSizeFactor": 110
+        },
+        {
             "name": "websiteurl",
             "displayName": "Website",
             "dataType": "SingleLine.URL",
             "alias": "urlField",
-            "order": 4,
+            "order": 5,
             "visualSizeFactor": 180
         }
     ],
@@ -51,8 +59,9 @@
                 "name": "Fabrikam Manufacturing",
                 "accountnumber": "ACC-1042",
                 "primarycontactname": "Dana Whitfield",
-                "statecode": "Active",
-                "websiteurl": "https://www.fabrikam.example.com"
+                "statecode": 0,
+                "websiteurl": "https://www.fabrikam.example.com",
+                "industrycode": 3
             }
         },
         {
@@ -61,8 +70,9 @@
                 "name": "Contoso Logistics",
                 "accountnumber": "ACC-1087",
                 "primarycontactname": "Ravi Menon",
-                "statecode": "Active",
-                "websiteurl": "https://logistics.contoso.example.com"
+                "statecode": 0,
+                "websiteurl": "https://logistics.contoso.example.com",
+                "industrycode": 1
             }
         },
         {
@@ -71,8 +81,9 @@
                 "name": "Northwind Traders",
                 "accountnumber": "ACC-1103",
                 "primarycontactname": "Erin Boyle",
-                "statecode": "Active",
-                "websiteurl": "https://northwind.example.com"
+                "statecode": 0,
+                "websiteurl": "https://northwind.example.com",
+                "industrycode": 2
             }
         },
         {
@@ -81,8 +92,9 @@
                 "name": "Adventure Works Cycles",
                 "accountnumber": "ACC-1155",
                 "primarycontactname": "Marcus Feld",
-                "statecode": "Active",
-                "websiteurl": "https://adventure-works.example.com/cycles"
+                "statecode": 0,
+                "websiteurl": "https://adventure-works.example.com/cycles",
+                "industrycode": 3
             }
         },
         {
@@ -91,8 +103,9 @@
                 "name": "Litware Consulting",
                 "accountnumber": "ACC-1178",
                 "primarycontactname": "Priya Raman",
-                "statecode": "Inactive",
-                "websiteurl": ""
+                "statecode": 1,
+                "websiteurl": "",
+                "industrycode": 1
             }
         },
         {
@@ -101,8 +114,9 @@
                 "name": "Tailspin Toys",
                 "accountnumber": "ACC-1201",
                 "primarycontactname": "Owen Brackett",
-                "statecode": "Active",
-                "websiteurl": "https://tailspintoys.example.com"
+                "statecode": 0,
+                "websiteurl": "https://tailspintoys.example.com",
+                "industrycode": 2
             }
         },
         {
@@ -111,8 +125,9 @@
                 "name": "Proseware Systems",
                 "accountnumber": "ACC-1233",
                 "primarycontactname": "Alice Nakamura",
-                "statecode": "Active",
-                "websiteurl": "https://proseware.example.com"
+                "statecode": 0,
+                "websiteurl": "https://proseware.example.com",
+                "industrycode": 3
             }
         },
         {
@@ -121,8 +136,9 @@
                 "name": "Wingtip Analytics",
                 "accountnumber": "ACC-1260",
                 "primarycontactname": "Tomas Ehrlich",
-                "statecode": "Active",
-                "websiteurl": "https://wingtip.example.com/analytics"
+                "statecode": 0,
+                "websiteurl": "https://wingtip.example.com/analytics",
+                "industrycode": 1
             }
         }
     ],
@@ -131,7 +147,42 @@
             "account": {
                 "entitySet": "accounts",
                 "primaryId": "accountid",
-                "primaryName": "name"
+                "primaryName": "name",
+                "columns": {
+                    "statecode": {
+                        "options": [
+                            {
+                                "value": 0,
+                                "label": "Active"
+                            },
+                            {
+                                "value": 1,
+                                "label": "Inactive"
+                            }
+                        ]
+                    },
+                    "industrycode": {
+                        "options": [
+                            {
+                                "value": 1,
+                                "label": "Accounting"
+                            },
+                            {
+                                "value": 2,
+                                "label": "Manufacturing"
+                            },
+                            {
+                                "value": 3,
+                                "label": "Logistics"
+                            }
+                        ]
+                    }
+                }
+            },
+            "contact": {
+                "entitySet": "contacts",
+                "primaryId": "contactid",
+                "primaryName": "fullname"
             }
         },
         "faults": [
@@ -141,6 +192,11 @@
                 "id": "a0003",
                 "message": "This account has open invoices, so it cannot be deleted."
             }
-        ]
+        ],
+        "record": {
+            "entityType": "contact",
+            "id": "c0000000-0000-4000-8000-000000000001",
+            "name": "Dana Whitfield"
+        }
     }
 }

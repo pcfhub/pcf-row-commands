@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "pcf-row-commands",
   "name": "Row Commands",
-  "tagline": "Open, launch or delete from the row itself — select rows to delete together, and resize the columns.",
-  "summary": "Puts up to three buttons at the end of every row of a view, with no ribbon customisation: **Open** goes to the record's form, **Open link** follows an address held in a column you map, and **Delete** asks for confirmation first.\n\n- Delete is off by default, and offered only to users whose roles allow it\n- Optional row selection, to delete several rows with one confirmation\n- Resizable columns, remembered per user and view",
+  "tagline": "Open, launch or delete from the row itself — plus commands of your own, Activate and Deactivate, and selection.",
+  "summary": "Puts commands at the end of every row of a view, with no ribbon customisation: **Open** goes to the record's form, **Open link** follows an address held in a column you map, and **Delete** asks for confirmation first.\n\n- **Your own commands** (new in 0.3.0): buttons you describe in JSON, each setting columns on the row or reporting a press to a form script\n- **Activate and Deactivate** on each row and over a selection (new in 0.3.0)\n- Optional row selection, to act on several rows with one confirmation\n- Delete and writes offered only to users whose roles allow them\n- Resizable columns, remembered per user and view",
   "category": "data",
   "hosts": [
     "canvas",
@@ -17,7 +17,8 @@
     "no-react",
     "selection",
     "bulk-delete",
-    "resizable-columns"
+    "resizable-columns",
+    "localised"
   ],
   "supportLevel": "reference",
   "builtWith": "ai",
@@ -40,6 +41,7 @@
     "logo": "media/logo.png",
     "screenshots": [
       "media/screenshot.png",
+      "media/screenshot-commands.png",
       "media/screenshot-resize.png",
       "media/screenshot-delete.png",
       "media/screenshot-mobile.png",
@@ -59,7 +61,11 @@
       "The website addresses in the fixture are example.com placeholders, so following one leads nowhere. What is real is which rows offer the link and which do not: the address is read from a bound column, checked against http and https, and a row whose column is empty gets no button. One record in the fixture has no address for that reason.",
       "Paging and sorting work against the fixture. A header click sorts the whole fixture on the next fetch, the way a real view sorts on the server across every page, and goes back to page one. The Compact preset asks for four rows a page, so its eight rows make two pages. The page size is still a request: a real view may clamp it, and the ceiling is 250.",
       "Selection works here as a checkbox column and a bar, and a tick survives a re-render: change a property or the theme and it stays. With Delete switched on the bar offers Delete selected: one confirmation for the lot, then one deleteRecord per row, one after another, and a single refresh at the end. A sort or a new page size clears the selection on purpose, because it names rows the reader may no longer see. The subgrid command bar that acts on a selection on a real form is part of the form, not of the control, so it is not here.",
-      "Resizing works for real. Drag a column edge, or tab to it and press the arrow keys. Whether the width is remembered across a reload depends on whether this page may use the browser's storage; where it may not, the width lasts until the page is reloaded, which is the control's real behaviour on a browser that refuses storage."
+      "Resizing works for real. Drag a column edge, or tab to it and press the arrow keys. Whether the width is remembered across a reload depends on whether this page may use the browser's storage; where it may not, the width lasts until the page is reloaded, which is the control's real behaviour on a browser that refuses storage.",
+      "Your own commands are given to the demo as JSON in the Your commands property. On a form that property can also name a web resource holding the JSON, which a form needs once the JSON passes 100 characters, the most the form designer accepts in a property. The demo has no web resources, so a name there says it was not found.",
+      "A command that writes, and Activate or Deactivate, writes to the demo's stand-in Dataverse through context.webAPI.updateRecord, as on a form, and the view refreshes to show it. Reset puts the rows back. The demo describes the Industry and Status choices but not their default status reasons, so Activate and Deactivate send the state alone here; on a form the control reads each state's default reason and sends it beside the state.",
+      "Escalate reports on the outputs (invokedCommand, invokedRecordId, invokeCount) and raises onRowCommand, both shown in the event log under the demo. On a model-driven form a form script reads the outputs with addOnOutputChange; onRowCommand was not delivered to a form script on a subgrid when measured, so the docs lead with the outputs.",
+      "The demo runs as a subgrid on a contact's form, which is why Escalate shows: a command that only reports a press is left off a main grid, where nothing can hear it. Industry is a column of the demo's view; on a form, the control fetches a column a command writes when the view lacks it, without drawing it."
     ],
     "presets": [
       {
@@ -71,9 +77,37 @@
           "showDelete": false,
           "pageSize": 8,
           "showSelection": false,
-          "lockColumnWidths": false
+          "lockColumnWidths": false,
+          "showStateCommands": false
         },
         "isDefault": true
+      },
+      {
+        "slug": "your-commands",
+        "name": "Your own commands",
+        "description": "New in 0.3.0: commands described in JSON. Mark as Logistics and Accounting set Industry on the row (Accounting asks first); Escalate only reports the press, for a form script or a formula. Tick rows to run them over a selection.",
+        "props": {
+          "hideOpen": false,
+          "showDelete": false,
+          "pageSize": 8,
+          "showSelection": true,
+          "lockColumnWidths": false,
+          "showStateCommands": false,
+          "commands": "{\"commands\":[{\"name\":\"approve\",\"label\":\"Mark as Logistics\",\"icon\":\"check\",\"set\":{\"industrycode\":3},\"selection\":true},{\"name\":\"escalate\",\"label\":\"Escalate\",\"icon\":\"flag\",\"selection\":true},{\"name\":\"accounting\",\"label\":\"Accounting\",\"icon\":\"archive\",\"set\":{\"industrycode\":1},\"confirm\":\"Move {0} to Accounting?\"}]}"
+        }
+      },
+      {
+        "slug": "activate-deactivate",
+        "name": "Activate and Deactivate",
+        "description": "New in 0.3.0: Deactivate on each active row, Activate on the inactive one, and both over a selection, which skips the rows already in that state. The state is read from each row and written back in one update.",
+        "props": {
+          "hideOpen": false,
+          "showDelete": false,
+          "pageSize": 8,
+          "showSelection": true,
+          "lockColumnWidths": false,
+          "showStateCommands": true
+        }
       },
       {
         "slug": "select-and-resize",
@@ -84,7 +118,8 @@
           "showDelete": true,
           "showSelection": true,
           "lockColumnWidths": false,
-          "pageSize": 8
+          "pageSize": 8,
+          "showStateCommands": false
         }
       },
       {
@@ -96,7 +131,8 @@
           "showDelete": false,
           "pageSize": 8,
           "showSelection": false,
-          "lockColumnWidths": false
+          "lockColumnWidths": false,
+          "showStateCommands": false
         }
       },
       {
@@ -108,7 +144,8 @@
           "showDelete": true,
           "pageSize": 8,
           "showSelection": false,
-          "lockColumnWidths": false
+          "lockColumnWidths": false,
+          "showStateCommands": false
         }
       },
       {
@@ -120,7 +157,8 @@
           "showDelete": false,
           "pageSize": 4,
           "showSelection": false,
-          "lockColumnWidths": false
+          "lockColumnWidths": false,
+          "showStateCommands": false
         }
       }
     ]

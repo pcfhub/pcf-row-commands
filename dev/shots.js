@@ -81,6 +81,14 @@ const SHOTS = [
         `__shot.set('harness-width', '360');
          __shot.inputs({ ...${JSON.stringify(DEFAULTS)}, showSelection: 'true', showDelete: 'true' });
          __shot.boxes()[2].click();`],
+    ['screenshot-commands.png', 1400, '0.3.0: two of the maker\'s commands and Activate/Deactivate on every row, and in the bar over two ticked rows',
+        `__shot.inputs({ ...${JSON.stringify(DEFAULTS)}, showSelection: 'true', showStateCommands: 'true',
+             commands: ${JSON.stringify(JSON.stringify({ commands: [
+                 { name: 'approve', label: 'Mark as Logistics', icon: 'check', set: { industrycode: 3 }, selection: true },
+                 { name: 'hold', label: 'Credit hold', icon: 'warning', set: { creditonhold: true }, confirm: 'Put {0} on credit hold?' },
+             ] }))} });
+         await new Promise((resolve) => setTimeout(resolve, 300));
+         __shot.boxes()[1].click(); __shot.boxes()[4].click();`],
     ['screenshot-dark.png', 1060, 'the dark fallbacks, with a row selected',
         `__shot.set('harness-dark', true);
          __shot.inputs({ ...${JSON.stringify(DEFAULTS)}, showSelection: 'true', showDelete: 'true' });

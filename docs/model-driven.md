@@ -50,6 +50,28 @@ Opening uses `navigation.openForm`, falling back to the dataset's own
 `openForm` resolves as the form opens — the navigation replaces the page — so
 there is nothing for the control to wait for.
 
+## Your own commands
+
+Put the commands' JSON in a **Script (JScript)** web resource, publish it, and
+type its name — `cr123_/rowcommands/claims.json` — in **Your commands**. The
+form designer accepts at most 100 characters in a property, so inline JSON fits
+only one short command. The control reads the published copy, on every form
+load: edit, publish, reload the form. A name it cannot find, or JSON it cannot
+read, is said in the line above the table, naming the problem.
+
+A command that **writes** works on a form's subgrid and on a main grid; one that
+only **reports a press** appears on a form's subgrid, where a form script can
+read the outputs, and not on a main grid. See [API reference](api.md) for the
+JSON and the form-script route.
+
+## Activate and Deactivate
+
+**Show Activate and Deactivate** adds one button per row — Deactivate on an
+active row, Activate on an inactive one — and both to the selection bar. The
+view does not need a Status column: the control asks for it, and does not draw
+it. A view of active records loses a row on the refresh after Deactivate, which
+is the point.
+
 ## Deleting
 
 :::callout{type=warning}
@@ -91,7 +113,7 @@ for the user in this browser, for this view.
 it acts on the rows the control selects: tick three rows and **Assign**, **Share**
 or **Run flow** act on those three — measured on a real subgrid. It appears on
 every subgrid carrying the control as soon as 0.2.0 is imported, with no change
-to the form; see [Migrating to 0.2.0](migration.md). A main grid already has the
+to the form; see [Migrating](migration.md). A main grid already has the
 app's command bar and is unchanged.
 
 The view selector and quick find stay off. The view selector would let a user

@@ -1,6 +1,6 @@
 # Row Commands
 
-Open a record, launch a URL, or delete it with a confirm, from the row itself.
+Open a record, launch a URL, delete it with a confirm, or run commands of your own, from the row itself.
 
 > **Reference example · built with AI.** This control was written with AI (Claude) and tested on a live Dataverse form; its code has not been reviewed line by line. It is published as a worked example and is not maintained — read the source and [`SPEC.md`](SPEC.md) (what was measured on the form) before you use it. Fixes are not guaranteed.
 
@@ -42,6 +42,16 @@ the schemes somebody thought of — so a `javascript:` or `data:` value produces
 no button at all. Relative paths are refused too, which is a real cost: there is
 no base this control can honestly resolve them against.
 
+**Since 0.3.0, commands of your own, and Activate/Deactivate.** Described in
+JSON — in the property, or in a web resource it names, because the form designer
+takes at most 100 characters — each command either sets columns on the row in
+one Web API update or reports the press on the outputs, which is the channel a
+form script (`addOnOutputChange`) and a canvas formula (`OnChange`) both read.
+The control also raises a custom `onRowCommand` event, but on a subgrid a form
+script's handler was never called when measured (`SPEC.md`, P1). Activate and
+Deactivate write the state with its default reason in one update, only on a
+table whose Status is exactly Active and Inactive.
+
 **Delete always asks first, and cannot be configured not to.** The confirmation
 is `navigation.openConfirmDialog`, and a host without it does not get the delete
 command — the confirmation is the safeguard, so a host that cannot show one has
@@ -65,9 +75,11 @@ picker in the configuration pane, which reads as a broken control.
 | --- | --- | --- | --- | --- |
 | `hideOpen` | TwoOptions | input | `false` | Removes the **Open** command from every row |
 | `showDelete` | TwoOptions | input | `false` | Adds the **Delete** command, where the host supports it |
+| `commands` | SingleLine.Text | input | *empty* | Your own commands: JSON, or the name of a web resource holding it. See `docs/api.md` |
+| `showStateCommands` | TwoOptions | input | `false` | Activate or Deactivate on each row, and both over a selection |
 | `pageSize` | Whole.None | input | *the host's own* | Rows requested per page; clamped to 1–250. Unset, the control adopts the page size the app or the user already chose |
 | `invokedRecordId` | SingleLine.Text | output | — | The row whose command was pressed most recently |
-| `invokedCommand` | SingleLine.Text | output | — | `open`, `url` or `delete` |
+| `invokedCommand` | SingleLine.Text | output | — | `open`, `url`, `delete`, `activate`, `deactivate`, a command's `name` — or any of the last four with `Selected` after it |
 | `invokeCount` | Whole.None | output | — | Presses so far — see below |
 
 **`hideOpen` is inverted and `showDelete` is not, and that is one rule read two

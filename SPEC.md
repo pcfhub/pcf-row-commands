@@ -521,8 +521,53 @@ once on the Accounts main grid with it):
 | P6 | `all()` → `P6_privileges` (Write is 3); `await write(<row>, { <a choice column>: <a value> })`; if a column is field-secured, `await write(<row>, { <it>: ... })` for the refusal's shape | a set-column command hidden by role; what a refused write says | **The right way for the write, 2026-10-08, main grid.** `hasEntityPrivilege` with `Utility` declared: Write (3) and Delete (4) `true` at depths 0–3 — the administrator, who cannot reach the `false` branch. `write(row, { industrycode: 1 })` on "asdasdasdsad" resolved in 314 ms with the right id and read back 1; put back to `null`. **Not measured:** a field-secured refusal (no secured column on account here), and a user without Write. |
 | P7 | With P1's handler bound, also `c.addOnOutputChange(() => console.log('P7 output change', c.getOutputs()))`, then `raise()` once more | the double fire: the event and the outputs both reaching one form script | **The outputs channel works, 2026-10-08, subgrid.** `control.addOnOutputChange` fired on each `raise()`, and `getOutputs()` carried `Subgrid_new_2.invokeCount` 1 then 2 and `invokedCommand` "probe" (`invokedRecordId` "" — the subgrid was empty). No double fire to observe, since the event handler (P1) never ran. So today **the outputs are the one form-script channel that works on a subgrid**. |
 
+## 0.3.0, as built
+
+What the probe's answers became (`38bbf49` and after):
+
+- **Your commands**: `config.ts` (parse, refuse by name, compare held values),
+  `configLoader.ts` (inline JSON, or a web resource by name; every failure a
+  state), `state.ts` (Status options, the Active/Inactive rule, the payload).
+  A command that writes reports **after** the write; a press-only command at
+  the press; `onRowCommand` raised beside both (P1: not delivered on a subgrid).
+- **The columns a command reads** (`statecode`, and every column in a `set`)
+  are asked for with `addColumn` once each when the view lacks them (P4), and
+  never drawn — `requested` filters them out of the table and its width key.
+- **The command column never takes more than 60% of the control.** Found by
+  the hub's demo at 640px: three labelled commands took the whole width and the
+  data scrolled away under them. Past 60% the labels go, as they do below
+  560px. 50% was tried first and dropped labels on a 1400px form.
+- **Rig**: Status/Status Reason options with `State`/`DefaultStatus` and the
+  cross-state refusal, ported from the template; `languageId` a switch; the
+  string table regenerated from the 1033 resx (the harness page showed raw keys
+  for the 0.3.0 strings until it was).
+- 213 assertions; ten mutants of the new decisions, every one killed.
+
+**Walkthrough, 0.3.0 on cll365** (the Information form's `Subgrid_new_2`, and
+the *My Active Accounts* main grid):
+
+| # | Do | Expect |
+| --- | --- | --- |
+| W1 | Import 0.3.0 over 0.2.5. Look at both hosts before configuring anything. | Exactly what 0.2.5 drew: no new buttons, no new permission asked. |
+| W2 | On the main grid's view, **Your commands** = a web resource `cll_/rowcommands.json` holding `{"commands":[{"name":"logistics","label":"Logistics","icon":"check","set":{"industrycode":<a value>},"selection":true},{"name":"escalate","label":"Escalate","icon":"flag"}]}`, published. | **Logistics** on rows not already in that industry; **no Escalate** (a main grid has no listener). No Industry column added to the view. |
+| W3 | Press **Logistics** on a test account. | Industry changes (open the record to see), the row loses the button after the refresh, the status line says so. |
+| W4 | **Show Activate and Deactivate** on; press **Deactivate** on a test account. | It leaves *My Active Accounts* on the refresh; the record is Inactive with reason Inactive (2). |
+| W5 | Show row selection on; tick three active test accounts; **Deactivate selected**; confirm. | One confirmation naming 3; progress; "3 records were updated."; then reactivate them the same way. |
+| W6 | On the subgrid (give it two related `cll_account` rows), the same JSON inline or by name; in the console `Xrm.Page.getControl('Subgrid_new_2').addOnOutputChange(() => console.log(Xrm.Page.getControl('Subgrid_new_2').getOutputs()))`; press **Escalate**. | **Escalate** shows here (a form); the output change fires with `invokedCommand: "escalate"` and the row's id. |
+| W7 | **Your commands** = `cll_/nope.json`. | "the web resource cll_/nope.json was not found…" above the table; Open etc. still there. |
+| W8 | As a user whose roles allow no Write on account, if one exists. | No Logistics, no Activate/Deactivate. |
+
 ## Not verified
 
+- **0.3.0: `onRowCommand` bound at OnLoad, in a person's browser.** The
+  built-in browser could not show the OnLoad script running at all (P1).
+- **0.3.0: a field-secured column in a command's `set`**, and the refusal's
+  shape; and a user whose roles allow Write only on their own records.
+- **0.3.0: a table whose Status has more than two values** (case) on a form —
+  the rule hides the commands; asserted in the rig only.
+- **0.3.0: commands in a canvas app** — press-only commands are drawn for
+  `OnChange`; not run in a canvas app.
+- **0.3.0: the phone client** with labelled custom commands.
 - **That `openForm` throws on canvas.** The probe found it published and did
   not call it — it would have taken the screen. 0.2.4 no longer calls it there,
   so the answer changes nothing the control does. Proving it: a canvas app and

@@ -60,6 +60,86 @@ when one is written, so pressing the same command twice on the same row writes
 the same values twice and raises one event. The counter is what makes the second
 press visible.
 
+**Since 0.3.0, `Invoked command` can also be** `activate`, `deactivate`, the
+`name` of one of your commands, or any of those with `Selected` after it
+(`approveSelected`), with `Invoked record id` listing the rows, comma-separated.
+A command that **writes** reports **after** the write succeeds — a form script
+reading the outputs reads a row that has already changed — and a refused write
+reports nothing. Over a selection, the ids are the rows it succeeded on. A
+command that only reports a press reports at the press.
+
+## Your commands
+
+The **Your commands** property takes either the JSON below, or the name of a
+web resource holding it (anything that does not start with `{` or `[` is read
+as a name). In the model-driven form designer, use a web resource: the designer
+accepts at most 100 characters in a property.
+
+```json
+{
+  "commands": [
+    { "name": "approve", "label": "Approve", "icon": "check",
+      "set": { "cr123_approval": 100000001 },
+      "confirm": "Approve {0}?", "selection": true },
+    { "name": "escalate", "label": { "1033": "Escalate", "1036": "Escalader" },
+      "icon": "flag" }
+  ]
+}
+```
+
+| Key | Required | What it does |
+| --- | --- | --- |
+| `name` | yes | What `Invoked command` reports. Starts with a lower-case letter; letters and digits only. Not `open`, `url`, `delete`, `activate` or `deactivate`, and not ending in `Selected`. |
+| `label` | yes | The button's text: a string, or an object of language codes (LCID) to text — the user's language, then English (1033), then the first one given. Up to 60 characters. |
+| `icon` | no | `run` (the default), `check`, `dismiss`, `flag`, `send`, `star`, `warning` or `archive`. |
+| `set` | no | Columns to write on the row, by logical name, with text, numbers, `true`, `false` or `null`. A choice is its number; a lookup is `"<navigation>@odata.bind": "/accounts(<id>)"`. Without `set`, the command writes nothing and only reports the press. |
+| `confirm` | no | A sentence to confirm with before writing; `{0}` is the row's name. |
+| `selection` | no | `true` to offer the command in the bar over a selection too. |
+
+At most six commands. A mistake — an unknown key, a misspelt one, a name used
+twice, `statecode` in `set` — is reported by name in the line above the table,
+and the control's own commands carry on.
+
+**Where each command appears.** A command that writes needs a model-driven app
+and a user whose roles allow Write on the table; it is left off a row that
+already holds every value it would write. A command that only reports a press
+appears on a form and in a canvas app, where something can hear it, and not on
+a main grid, where nothing can.
+
+## Activate and Deactivate
+
+**Show Activate and Deactivate** puts Deactivate on each active row and
+Activate on each inactive one, and both in the bar over a selection. The control
+reads each row's Status — asking the dataset for it if the view does not show
+it — and writes the state with that state's default Status Reason in one
+update. Only on a table whose Status is exactly Active and Inactive, in a
+model-driven app, for a user whose roles allow Write.
+
+## Reacting from a form script
+
+**Use the outputs.** On the subgrid's control, `addOnOutputChange` fires every
+time a command runs, and `getOutputs()` says which and on what:
+
+```js
+function onLoad(executionContext) {
+    const formContext = executionContext.getFormContext();
+    const grid = formContext.getControl("Accounts"); // the subgrid's name
+    grid.addOnOutputChange(() => {
+        const outputs = grid.getOutputs();
+        const command = outputs[`${grid.getName()}.invokedCommand`]?.value;
+        const ids = (outputs[`${grid.getName()}.invokedRecordId`]?.value ?? "").split(",");
+        if (command === "escalate") {
+            // ...the rows in ids
+        }
+    });
+}
+```
+
+The control also raises a custom event, **`onRowCommand`**, with `{ command,
+recordIds, entityName, refresh }` — but on a model-driven subgrid, when
+measured, a handler added with `addEventHandler("onRowCommand", …)` was never
+called. It is declared and raised for a host that delivers it; do not rely on it.
+
 ## Columns
 
 The other columns are the view's.

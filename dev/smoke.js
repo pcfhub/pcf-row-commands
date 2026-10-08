@@ -2130,6 +2130,20 @@ check(
         commanded.find('.RowCommands-commandsHeader').style.width,
     );
 
+    const narrowish = bind({ inputs: { commands: COMMANDS }, contextInfo: FORM, width: 640 });
+    const roomy = bind({ inputs: { commands: COMMANDS }, contextInfo: FORM, width: 1600 });
+
+    await ready(narrowish);
+    await ready(roomy);
+
+    check(
+        'the command column never takes more than 60% of the control: at 640px the labels go, at 1600px they stay',
+        narrowish.container.className.indexOf('RowCommands--compact') !== -1
+            && roomy.container.className.indexOf('RowCommands--compact') === -1
+            && widthOf(narrowish.find('.RowCommands-commandsHeader')) <= 320,
+        `${narrowish.container.className} ${narrowish.find('.RowCommands-commandsHeader').style.width} | ${roomy.container.className}`,
+    );
+
     press(on(commanded, 'Fabrikam', 'approve'));
     await ready(commanded);
 
