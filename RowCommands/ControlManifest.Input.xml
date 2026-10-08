@@ -175,6 +175,39 @@
               default-value="false" />
 
     <!--
+      Since 0.3.0: the maker's own commands. The value is either the JSON
+      itself (it starts with `{` or `[`) or the name of a web resource that
+      holds it — because a model-driven form refuses a static value over 100
+      characters (measured, pcf-code-editor) and a canvas app has no
+      organisation to fetch a web resource from. `config.ts` has the shape.
+
+      `SingleLine.Text`, not `Multiple`: the designer's box is the same either
+      way, and a canvas formula is not bounded by either. No default — empty is
+      "no commands of your own", which is what an upgraded control must draw.
+    -->
+    <property name="commands"
+              display-name-key="Commands_Name"
+              description-key="Commands_Desc"
+              of-type="SingleLine.Text"
+              usage="input"
+              required="false" />
+
+    <!--
+      Since 0.3.0: Activate or Deactivate on each row, and both over a
+      selection. `showX` and off, by the rule above: a new feature arrives
+      switched off. Offered only on a table whose Status is exactly Active and
+      Inactive, read from `getEntityMetadata` — which is the Utility feature
+      this control already declares.
+    -->
+    <property name="showStateCommands"
+              display-name-key="ShowStateCommands_Name"
+              description-key="ShowStateCommands_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="false" />
+
+    <!--
       Three outputs, and the third is the one that is easy to leave out.
 
       `invokedRecordId` and `invokedCommand` say what happened. `invokeCount`
@@ -190,6 +223,12 @@
       Since 0.2.0 `invokedCommand` can also be `deleteSelected`, with
       `invokedRecordId` the selected ids joined by commas, in page order. Said
       here because an output's format is permanent once somebody binds it.
+
+      Since 0.3.0 it can also be `activate` / `deactivate`, a maker's command
+      `name`, and each of those with `Selected` after it for a selection (the
+      ids joined the same way — only the ones it succeeded on). A command that
+      writes reports **after** the write succeeds, so a form script reacting to
+      it reads the new value; a press-only command reports at the press.
     -->
     <property name="invokedRecordId"
               display-name-key="InvokedRecordId_Name"
@@ -210,12 +249,18 @@
               usage="output" />
 
     <!--
-      PROBE (0.2.5): the event 0.3.0's maker-defined commands raise. A custom
-      `<event>`, not `<common-event>`: a form script binds by the event's own
-      name with `addEventHandler`, and OnSelect/OnChange are reserved names a
-      custom event may not take. Whether a form script can bind one on a
-      *subgrid* is SPEC.md P1 — never measured in this catalogue, for any
-      control.
+      Raised beside the outputs whenever one of the maker's commands runs. A
+      custom `<event>`, not `<common-event>`: a form script binds by the event's
+      own name with `addEventHandler`, and OnSelect/OnChange are reserved names
+      a custom event may not take.
+
+      **Declared, raised — and not delivered on a subgrid as measured.**
+      2026-10-08 (SPEC.md P1): `addEventHandler('onRowCommand', fn)` bound on
+      the subgrid without error and the raise returned, but the handler never
+      ran — bound from the console after load, and (inconclusively) at OnLoad.
+      **The outputs are the form-script channel that works** (P7):
+      `control.addOnOutputChange` fires on every command and `getOutputs()`
+      says which. `docs/api.md` documents both and leads with the outputs.
     -->
     <event name="onRowCommand"
            display-name-key="OnRowCommand_Name"

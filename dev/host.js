@@ -168,7 +168,7 @@
 
         return {
             isRTL: o.rtl,
-            languageId: 1033,
+            languageId: o.languageId === undefined ? 1033 : o.languageId,
             getTimeZoneOffsetMinutes: function (date) {
                 // Logged, because the call is not free on every tenant: a zone with no
                 // DST rule on file for the year logs a platform error per call, so a
@@ -1907,7 +1907,29 @@
 
             if (entry.options && entry.shape === 'descriptor') {
                 node.attributeDescriptor.OptionSet = entry.options.map(function (option) {
-                    var described = { Label: option.label, Value: option.value, IsHidden: false };
+                    var described = {
+                        Label: option.label,
+                        Value: option.value,
+                        TransitionData: option.transitionData === undefined ? null : option.transitionData,
+                        IsHidden: false,
+                    };
+
+                    /*
+                     * Ported from the template's dataset rig (2026-10-08): a
+                     * Status Reason option carries its **`State`** (a number),
+                     * a Status option its **`DefaultStatus`** and
+                     * `InvariantName` — measured on `cll_task` 2026-09-29 and
+                     * on `account` 2026-10-08 (SPEC.md P5). `state` /
+                     * `defaultStatus` in the fixture turn them on.
+                     */
+                    if (typeof option.state === 'number') {
+                        described.State = option.state;
+                    }
+
+                    if (typeof option.defaultStatus === 'number') {
+                        described.DefaultStatus = option.defaultStatus;
+                        described.InvariantName = option.invariantName || option.label;
+                    }
 
                     /*
                      * **`Color` is on the descriptor array only, never on the
@@ -1950,6 +1972,38 @@
             }
 
             return node;
+        }
+
+        /**
+         * Whether an update names a Status Reason outside the state the record
+         * will be in — which the server refuses rather than repairs. Ported
+         * from the template's dataset rig; measured on `cll_task` 2026-09-29
+         * and again on `account` 2026-10-08 (SPEC.md P5): `{ statuscode }`
+         * alone into the other state is refused with 2147779592, the pair is
+         * accepted. A fixture whose reasons carry no `state` accepts everything.
+         */
+        function statusMismatch(row, data) {
+            var has = function (bag, key) {
+                return Boolean(bag) && Object.prototype.hasOwnProperty.call(bag, key);
+            };
+
+            if (!has(data, 'statuscode')) {
+                return false;
+            }
+
+            var reasons = ((fixture.metadata || {}).statuscode || {}).options || [];
+            var reason = reasons.filter(function (option) {
+                return String(option.value) === String(data.statuscode);
+            })[0];
+
+            if (!reason || typeof reason.state !== 'number') {
+                return false;
+            }
+
+            var current = has(row.committed, 'statecode') ? row.committed.statecode : row.values.statecode;
+            var state = has(data, 'statecode') ? data.statecode : current;
+
+            return state !== undefined && state !== null && Number(state) !== reason.state;
         }
 
         /** The label a Choice's integer renders as, from `fixture.metadata`. */
@@ -3421,6 +3475,14 @@
                                     2147746327,
                                     'Record Is Unavailable',
                                     'The requested record was not found.',
+                                ));
+                            }
+
+                            if (statusMismatch(row, data)) {
+                                return Promise.reject(webApiFault(
+                                    2147779592,
+                                    'State code or status code is invalid.',
+                                    'State code is invalid or state code is valid but status code is invalid for a specified state code.',
                                 ));
                             }
 

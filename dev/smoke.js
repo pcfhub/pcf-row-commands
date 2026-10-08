@@ -127,6 +127,24 @@ const TEMPLATES = {
     RowCommands_DeletedSome: '{0} of {1} deleted; {2} failed.',
     RowCommands_DeleteStopped: 'Stopped: {0} of {1}.',
     RowCommands_ResizeColumn: 'Resize {0}',
+    // 0.3.0. Real where an assertion reads the sentence, marked everywhere else.
+    RowCommands_CommandRecord: '{0}: {1}',
+    RowCommands_CommandDone: '{0}: {1} was updated.',
+    RowCommands_CommandFailed: '{0}: {1} could not be updated.',
+    RowCommands_ActivateRecord: 'Activate {0}',
+    RowCommands_DeactivateRecord: 'Deactivate {0}',
+    RowCommands_Activated: '{0} was activated.',
+    RowCommands_Deactivated: '{0} was deactivated.',
+    RowCommands_StateFailed: '{0} could not be changed.',
+    RowCommands_DeactivateSelected: 'Deactivate selected',
+    RowCommands_UpdateSelectedText: '{0} will be applied to {1} records.',
+    RowCommands_UpdatingProgress: 'Updating {0} of {1}',
+    RowCommands_UpdatedMany: '{0} records were updated.',
+    RowCommands_UpdatedSome: '{0} of {1} updated; {2} failed.',
+    RowCommands_UpdateStopped: 'Stopped: {0} of {1}.',
+    RowCommands_ConfigNotFound: 'Not found: {0}',
+    RowCommands_ConfigDenied: 'Denied: {0} ({1})',
+    RowCommands_ConfigInvalid: 'Invalid: {0}',
 };
 
 const speaks = (key) => (TEMPLATES[key] !== undefined ? TEMPLATES[key] : marked(key));
@@ -159,7 +177,7 @@ function disposeAll() {
 }
 
 function bind(options = {}) {
-    const handle = host.createHost(fixture, {
+    const handle = host.createHost(options.fixture || fixture, {
         getString: speaks,
         ...options,
         inputs: { ...MANIFEST_DEFAULTS, ...(options.inputs || {}) },
@@ -1033,6 +1051,128 @@ const bulk = load('bulk');
     check('privileges: Delete is 4', privileges.PRIVILEGE_DELETE === 4);
 }
 
+/* ============================================ 0.3.0's decision modules */
+
+/*
+ * The maker's commands, Activate/Deactivate and Write: parsed, compared and
+ * paid for in source, before the bundle sections prove index.ts asks them.
+ */
+const config = load('config');
+const states = load('state');
+
+{
+    const parsed = config.parseCommands(JSON.stringify({
+        commands: [
+            { name: 'approve', label: 'Approve', set: { industrycode: 1 }, selection: true },
+            { name: 'escalate', label: { 1033: 'Escalate', 1036: 'Escalader' }, icon: 'flag' },
+        ],
+    }));
+
+    check(
+        'config: two commands, the defaults filled in — run icon, no set, no confirm, not on the selection',
+        parsed.ok && parsed.commands.length === 2
+            && parsed.commands[0].icon === 'run' && parsed.commands[0].selection === true
+            && parsed.commands[1].set === null && parsed.commands[1].confirm === null && parsed.commands[1].selection === false,
+        JSON.stringify(parsed),
+    );
+
+    check('config: a bare array is accepted too', config.parseCommands('[{"name":"a","label":"A"}]').ok === true);
+
+    const refused = {
+        notJson: config.parseCommands('{nope'),
+        notAList: config.parseCommands('{"command":[]}'),
+        reserved: config.parseCommands('[{"name":"delete","label":"X"}]'),
+        selected: config.parseCommands('[{"name":"approveSelected","label":"X"}]'),
+        twice: config.parseCommands('[{"name":"a","label":"A"},{"name":"a","label":"B"}]'),
+        typo: config.parseCommands('[{"name":"a","lable":"A"}]'),
+        state: config.parseCommands('[{"name":"a","label":"A","set":{"statecode":1}}]'),
+        value: config.parseCommands('[{"name":"a","label":"A","set":{"industrycode":{}}}]'),
+        column: config.parseCommands('[{"name":"a","label":"A","set":{"Industry Code":1}}]'),
+        icon: config.parseCommands('[{"name":"a","label":"A","icon":"rocket"}]'),
+        label: config.parseCommands('[{"name":"a"}]'),
+        name: config.parseCommands('[{"name":"Approve","label":"A"}]'),
+        many: config.parseCommands(JSON.stringify(Array.from({ length: 7 }, (_, i) => ({ name: `c${i}`, label: 'C' })))),
+    };
+    const said = Object.fromEntries(Object.entries(refused).map(([key, result]) => [key, result.ok ? 'ACCEPTED' : result.problem]));
+
+    check(
+        'config: every mistake is refused, and the sentence names what is wrong',
+        Object.values(refused).every((result) => !result.ok)
+            && /lable/.test(said.typo) && /statecode/.test(said.state) && /"delete"/.test(said.reserved)
+            && /twice/.test(said.twice) && /"Industry Code"/.test(said.column) && /at most 6/.test(said.many),
+        JSON.stringify(said),
+    );
+
+    check(
+        'config: inline JSON starts with a brace or a bracket; anything else is a web resource name',
+        config.isInline(' {"commands":[]}') && config.isInline('[]') && !config.isInline('cll_/commands.json'),
+    );
+
+    const escalate = parsed.commands[1];
+
+    check(
+        'config: a label per language — the user’s, then English, then the first the maker wrote',
+        config.labelFor(escalate, 1036) === 'Escalader' && config.labelFor(escalate, 1031) === 'Escalate'
+            && config.labelFor({ name: 'x', label: { 1041: 'J' } }, 1033) === 'J',
+    );
+
+    check(
+        'config: holdsAll compares by kind — a choice reads "3", a Yes/No true, empty as null; an unknown column holds nothing',
+        config.holdsAll({ industrycode: 3 }, () => '3')
+            && config.holdsAll({ creditonhold: true }, () => true)
+            && !config.holdsAll({ creditonhold: true }, () => false)
+            && config.holdsAll({ description: null }, () => null)
+            && !config.holdsAll({ industrycode: 3 }, () => undefined)
+            && !config.holdsAll({ 'parentaccountid@odata.bind': '/accounts(x)' }, () => 'x'),
+    );
+
+    check(
+        'config: columnsWritten names each column once, and never a lookup bind',
+        JSON.stringify(config.columnsWritten(parsed.commands.concat([{ name: 'b', set: { 'parentaccountid@odata.bind': null, industrycode: 2 } }]))) === '["industrycode"]',
+    );
+
+    const metadata = {
+        Attributes: {
+            get: (name) => (name === 'statecode'
+                ? { attributeDescriptor: { OptionSet: [{ Value: 0, DefaultStatus: 1 }, { Value: 1, DefaultStatus: 2 }] } }
+                : undefined),
+        },
+    };
+    const options = states.stateOptionsFrom(metadata);
+
+    check(
+        'state: the Status options and their default reasons, from the descriptor (P5)',
+        JSON.stringify(options) === '[{"value":0,"defaultStatus":1},{"value":1,"defaultStatus":2}]',
+        JSON.stringify(options),
+    );
+
+    check(
+        'state: only a table whose Status is exactly Active and Inactive',
+        states.isActiveInactive(options)
+            && !states.isActiveInactive([{ value: 0 }, { value: 1 }, { value: 2 }])
+            && !states.isActiveInactive(null),
+    );
+
+    check(
+        'state: "0" from getValue is 0 (P4); a label or nothing is unknown',
+        states.readState('0') === 0 && states.readState(1) === 1 && states.readState('Active') === null && states.readState(null) === null,
+    );
+
+    check(
+        'state: one update, the state and its own default reason — never a bare reason, which the server refuses',
+        JSON.stringify(states.statePayload(1, options)) === '{"statecode":1,"statuscode":2}'
+            && JSON.stringify(states.statePayload(0, null)) === '{"statecode":0}'
+            && states.targetState(0) === 1 && states.targetState(1) === 0 && states.targetState(2) === null,
+    );
+
+    check(
+        'privileges: Write is 3, asked at every depth, and a refusal at all of them is a no',
+        privileges.PRIVILEGE_WRITE === 3
+            && privileges.canByRole({ hasEntityPrivilege: (t, p, d) => p === 3 && d === 2 }, 'account', 3) === true
+            && privileges.canByRole({ hasEntityPrivilege: () => false }, 'account', 3) === false,
+    );
+}
+
 /* ================================================================ selection */
 
 const unselectable = bind({ inputs: { showDelete: true } });
@@ -1645,7 +1785,7 @@ check(
 
         check(
             'bulk: one at a time, in order, a failure halfway recorded and the rest still run',
-            order.join() === 'a,b,c' && run.deleted.map((item) => item.id).join() === 'a,c'
+            order.join() === 'a,b,c' && run.done.map((item) => item.id).join() === 'a,c'
                 && run.failed.length === 1 && run.failed[0].label === 'B' && run.failed[0].detail === 'cascade'
                 && results.join() === '1/3,2/3,3/3' && run.stopped === false,
             JSON.stringify(run),
@@ -1663,7 +1803,7 @@ check(
 
         check(
             'bulk: a Stop lets the record in flight finish and starts no other',
-            halted.deleted.length === 1 && halted.stopped === true && halted.remaining === 2,
+            halted.done.length === 1 && halted.stopped === true && halted.remaining === 2,
             JSON.stringify(halted),
         );
 
@@ -1882,6 +2022,377 @@ check(
         'and every document-level listener',
         listeners() === listenersBefore,
         `${listenersBefore} before, ${listeners()} after`,
+    );
+
+    /* ======================================= 0.3.0: where the commands come from */
+
+    const loader = load('configLoader');
+    const seen = [];
+    const fakeFetch = (status, body, rejects) => async (url, init) => {
+        seen.push(`${url} ${init.cache}`);
+
+        if (rejects) {
+            throw new TypeError('Failed to fetch');
+        }
+
+        return { status, ok: status >= 200 && status < 300, text: async () => body };
+    };
+    const ORG = 'https://org.crm.invalid/';
+    const loads = {
+        empty: await loader.loadCommands('  ', ORG, fakeFetch(200, '')),
+        inline: await loader.loadCommands('{"commands":[{"name":"a","label":"A"}]}', null, undefined),
+        noHost: await loader.loadCommands('cll_/rc.json', null, fakeFetch(200, '[]')),
+        found: await loader.loadCommands('cll_/rc x.json', ORG, fakeFetch(200, '[{"name":"a","label":"A"}]')),
+        notFound: await loader.loadCommands('cll_/rc.json', ORG, fakeFetch(404, '')),
+        denied: await loader.loadCommands('cll_/rc.json', ORG, fakeFetch(403, '')),
+        failed: await loader.loadCommands('cll_/rc.json', ORG, fakeFetch(500, '')),
+        offline: await loader.loadCommands('cll_/rc.json', ORG, fakeFetch(0, '', true)),
+        invalid: await loader.loadCommands('cll_/rc.json', ORG, fakeFetch(200, 'var x = 1;')),
+    };
+
+    check(
+        'loader: empty is none; inline JSON needs no host; a name with no organisation says so',
+        loads.empty.state === 'none' && loads.inline.state === 'ready' && loads.noHost.state === 'noHost',
+        JSON.stringify([loads.empty, loads.inline.state, loads.noHost]),
+    );
+
+    check(
+        'loader: a web resource answers ready, 404 not found, 403 denied, 500 failed, a rejection offline, a non-JSON body invalid',
+        loads.found.state === 'ready' && loads.notFound.state === 'notFound' && loads.denied.state === 'denied'
+            && loads.failed.state === 'failed' && loads.offline.state === 'offline' && loads.invalid.state === 'invalid',
+        Object.entries(loads).map(([key, value]) => `${key}:${value.state}`).join(' '),
+    );
+
+    check(
+        'loader: fetched from the organisation’s WebResources path, the name encoded, revalidated every load',
+        seen[0] === 'https://org.crm.invalid/WebResources/cll_/rc%20x.json no-cache',
+        seen[0],
+    );
+
+    /* ============================================= 0.3.0: the maker's commands */
+
+    const COMMANDS = JSON.stringify({
+        commands: [
+            { name: 'approve', label: 'Approve', icon: 'check', set: { industrycode: 3 }, selection: true },
+            { name: 'escalate', label: { 1033: 'Escalate', 1036: 'Escalader' }, icon: 'flag', selection: true },
+            { name: 'hold', label: 'Hold', set: { creditonhold: true }, confirm: 'Put {0} on hold?' },
+        ],
+    });
+    const FORM = { entityTypeName: 'contact', entityId: 'f0f0f0f0-0000-4000-8000-000000000001', entityRecordName: 'Dana Whitfield' };
+    const rowNamed = (view, name) => rowsOf(view).find((row) => row.textContent.indexOf(name) !== -1) || null;
+    const on = (view, name, command) => {
+        const row = rowNamed(view, name);
+
+        return row ? row.querySelector(`.RowCommands-command--${command}`) : null;
+    };
+    const ready = async (view) => {
+        await settled();
+        view.settle();
+        await settled();
+        view.settle();
+    };
+
+    const heard = [];
+    const commanded = bind({
+        inputs: { commands: COMMANDS },
+        contextInfo: FORM,
+        events: { onRowCommand: (payload) => heard.push(payload) },
+    });
+
+    await ready(commanded);
+
+    check(
+        'the columns a command writes are asked for once each, and not drawn — they are not the maker’s view',
+        callsLike(commanded, 'addColumn').join() === 'addColumn("industrycode"),addColumn("creditonhold")'
+            && callsLike(commanded, 'refresh').length >= 1
+            && dataHeaders(commanded).every((th) => !/Industry|Credit Hold/.test(th.textContent)),
+        `${callsLike(commanded, 'addColumn').join(' ')} | ${dataHeaders(commanded).map((th) => th.textContent).join(', ')}`,
+    );
+
+    check(
+        'on a form: every command where it would change something — Approve and Hold on Fabrikam, neither on Contoso, which holds both values',
+        on(commanded, 'Fabrikam', 'approve') !== null && on(commanded, 'Fabrikam', 'hold') !== null
+            && on(commanded, 'Contoso', 'approve') === null && on(commanded, 'Contoso', 'hold') === null
+            && on(commanded, 'Contoso', 'escalate') !== null,
+        rowsOf(commanded).map((row) => commandsIn(row).map((button) => button.className.replace(/.*--/, '')).join('/')).join(' | '),
+    );
+
+    check(
+        'a command’s button names the command and the row, and shows the label in the user’s language',
+        on(commanded, 'Fabrikam', 'approve').getAttribute('aria-label') === 'Approve: Fabrikam Manufacturing'
+            && on(commanded, 'Fabrikam', 'escalate').textContent === 'Escalate',
+        on(commanded, 'Fabrikam', 'approve').getAttribute('aria-label'),
+    );
+
+    check(
+        'the command column grows for the commands it now carries',
+        widthOf(commanded.find('.RowCommands-commandsHeader')) > 308,
+        commanded.find('.RowCommands-commandsHeader').style.width,
+    );
+
+    press(on(commanded, 'Fabrikam', 'approve'));
+    await ready(commanded);
+
+    check(
+        'Approve writes its columns in one updateRecord on the row',
+        callsLike(commanded, 'webAPI.updateRecord').join() === 'webAPI.updateRecord({"entity":"account","id":"a01","data":{"industrycode":3}})',
+        callsLike(commanded, 'webAPI.updateRecord').join(' | '),
+    );
+
+    check(
+        'and reports after the write — invokedCommand approve, the row’s id — and says so',
+        commanded.outputs().invokedCommand === 'approve' && commanded.outputs().invokedRecordId === 'a01'
+            && commanded.find('.RowCommands-status').textContent === 'Approve: Fabrikam Manufacturing was updated.',
+        `${JSON.stringify(commanded.outputs())} | ${commanded.find('.RowCommands-status').textContent}`,
+    );
+
+    check(
+        'and raises onRowCommand with the command, the rows, the table and a refresh to call back',
+        heard.length === 1 && heard[0].command === 'approve' && JSON.stringify(heard[0].recordIds) === '["a01"]'
+            && heard[0].entityName === 'account' && typeof heard[0].refresh === 'function',
+        JSON.stringify(heard),
+    );
+
+    const writesBefore = callsLike(commanded, 'webAPI.updateRecord').length;
+
+    press(on(commanded, 'Contoso', 'escalate'));
+    await settled();
+
+    check(
+        'a press-only command writes nothing, and reports and raises at the press',
+        callsLike(commanded, 'webAPI.updateRecord').length === writesBefore
+            && commanded.outputs().invokedCommand === 'escalate' && commanded.outputs().invokedRecordId === 'a02'
+            && heard.length === 2 && heard[1].command === 'escalate',
+        JSON.stringify(commanded.outputs()),
+    );
+
+    const declinedHold = bind({ inputs: { commands: COMMANDS }, contextInfo: FORM, dialogs: 'cancelled' });
+
+    await ready(declinedHold);
+    press(on(declinedHold, 'Fabrikam', 'hold'));
+    await ready(declinedHold);
+
+    check(
+        'a command with confirm asks first, naming the row, and a cancel writes nothing and reports nothing',
+        callsLike(declinedHold, 'navigation.openConfirmDialog').join().indexOf('Put Fabrikam Manufacturing on hold?') !== -1
+            && callsLike(declinedHold, 'webAPI.updateRecord').length === 0
+            && declinedHold.outputs().invokeCount === 0
+            && declinedHold.find('.RowCommands-status').textContent === 'resx:RowCommands_UpdateCancelled',
+        declinedHold.calls().filter((call) => /Dialog|update/.test(call)).join(' | '),
+    );
+
+    const refusedWrite = bind({ inputs: { commands: COMMANDS }, contextInfo: FORM, webApiFails: true });
+
+    await ready(refusedWrite);
+    press(on(refusedWrite, 'Fabrikam', 'approve'));
+    await ready(refusedWrite);
+
+    check(
+        'a refused write reports nothing on the outputs, and says why in the platform’s error dialog',
+        refusedWrite.outputs().invokeCount === 0
+            && callsLike(refusedWrite, 'navigation.openErrorDialog').length === 1
+            && refusedWrite.find('.RowCommands-status').textContent === 'Approve: Fabrikam Manufacturing could not be updated.',
+        `${refusedWrite.find('.RowCommands-status').textContent} | ${callsLike(refusedWrite, 'navigation.openErrorDialog').join()}`,
+    );
+
+    const mainGrid = bind({ inputs: { commands: COMMANDS } });
+
+    await ready(mainGrid);
+
+    check(
+        'a main grid draws the commands that write, and no press-only one — nothing there can hear it (P2)',
+        on(mainGrid, 'Fabrikam', 'approve') !== null && on(mainGrid, 'Fabrikam', 'escalate') === null,
+        commandsIn(rowNamed(mainGrid, 'Fabrikam')).map((button) => button.className).join(' | '),
+    );
+
+    const canvasCommands = bind({ inputs: { commands: COMMANDS }, host: 'canvas' });
+
+    await ready(canvasCommands);
+
+    check(
+        'a canvas app draws the press-only command, for OnChange, and none that writes',
+        on(canvasCommands, 'Fabrikam', 'escalate') !== null && on(canvasCommands, 'Fabrikam', 'approve') === null
+            && on(canvasCommands, 'Fabrikam', 'hold') === null,
+        commandsIn(rowNamed(canvasCommands, 'Fabrikam')).map((button) => button.className).join(' | '),
+    );
+
+    const noWrite = bind({ inputs: { commands: COMMANDS }, contextInfo: FORM, hasPrivilege: (type) => type !== 3 });
+
+    await ready(noWrite);
+
+    check(
+        'a user whose roles allow no Write is not offered a command that writes',
+        on(noWrite, 'Fabrikam', 'approve') === null && on(noWrite, 'Fabrikam', 'escalate') !== null,
+    );
+
+    const french = bind({ inputs: { commands: COMMANDS }, contextInfo: FORM, languageId: 1036 });
+
+    await ready(french);
+
+    check(
+        'a French user reads the French label the maker wrote',
+        on(french, 'Fabrikam', 'escalate')?.textContent === 'Escalader',
+        on(french, 'Fabrikam', 'escalate')?.textContent,
+    );
+
+    /* -------------------------------------- from a web resource, and its failures */
+
+    const fromResource = bind({
+        inputs: { commands: 'cll_/rowcommands.json' },
+        contextInfo: FORM,
+        fixture: { ...fixture, webResources: { 'cll_/rowcommands.json': COMMANDS } },
+    });
+
+    await ready(fromResource);
+
+    check(
+        'a web resource name loads the commands from the organisation (P3)',
+        on(fromResource, 'Fabrikam', 'approve') !== null
+            && callsLike(fromResource, 'fetch').join().indexOf('/WebResources/cll_/rowcommands.json') !== -1,
+        callsLike(fromResource, 'fetch').join(' | '),
+    );
+
+    const missing = bind({ inputs: { commands: 'cll_/missing.json' }, contextInfo: FORM });
+
+    await ready(missing);
+
+    check(
+        'a missing web resource is said, as an error that stays, and the built-in commands carry on',
+        missing.find('.RowCommands-status').textContent === 'Not found: cll_/missing.json'
+            && missing.find('.RowCommands-status').className.indexOf('--error') !== -1
+            && on(missing, 'Fabrikam', 'open') !== null,
+        missing.find('.RowCommands-status').textContent,
+    );
+
+    const broken = bind({ inputs: { commands: '{"commands":[{"name":"a","lable":"A"}]}' }, contextInfo: FORM });
+
+    await ready(broken);
+
+    check(
+        'JSON with a mistake is said, naming the mistake',
+        /^Invalid: .*"lable"/.test(broken.find('.RowCommands-status').textContent),
+        broken.find('.RowCommands-status').textContent,
+    );
+
+    /* ======================================== 0.3.0: Activate and Deactivate */
+
+    const stating = bind({ inputs: { showStateCommands: true } });
+
+    await ready(stating);
+
+    check(
+        'Deactivate on an active row, Activate on an inactive one — and the table’s Status asked for once',
+        on(stating, 'Fabrikam', 'deactivate') !== null && on(stating, 'Fabrikam', 'activate') === null
+            && on(stating, 'Litware', 'activate') !== null && on(stating, 'Litware', 'deactivate') === null
+            && callsLike(stating, 'utils.getEntityMetadata').length === 1,
+        `${callsLike(stating, 'utils.getEntityMetadata').join()} | ${rowsOf(stating).map((row) => commandsIn(row).map((b) => b.className.replace(/.*--/, '')).join('/')).join(' | ')}`,
+    );
+
+    check(
+        'state commands are off unless the maker turns them on',
+        on(bind({}), 'Fabrikam', 'deactivate') === null,
+    );
+
+    press(on(stating, 'Fabrikam', 'deactivate'));
+    await ready(stating);
+
+    check(
+        'Deactivate sends the state and its own default reason in one update, and reports deactivate',
+        callsLike(stating, 'webAPI.updateRecord').join() === 'webAPI.updateRecord({"entity":"account","id":"a01","data":{"statecode":1,"statuscode":2}})'
+            && stating.outputs().invokedCommand === 'deactivate' && stating.outputs().invokedRecordId === 'a01'
+            && stating.find('.RowCommands-status').textContent === 'Fabrikam Manufacturing was deactivated.',
+        `${callsLike(stating, 'webAPI.updateRecord').join()} | ${JSON.stringify(stating.outputs())}`,
+    );
+
+    const threeStates = bind({
+        inputs: { showStateCommands: true },
+        fixture: { ...fixture, metadata: { ...fixture.metadata, statecode: { shape: 'descriptor', options: [{ value: 0, label: 'Active', defaultStatus: 1 }, { value: 1, label: 'Resolved', defaultStatus: 5 }, { value: 2, label: 'Cancelled', defaultStatus: 6 }] } } },
+    });
+
+    await ready(threeStates);
+
+    const noMetadata = bind({ inputs: { showStateCommands: true }, utils: false });
+
+    await ready(noMetadata);
+
+    const stateOnCanvas = bind({ inputs: { showStateCommands: true }, host: 'canvas' });
+
+    await ready(stateOnCanvas);
+
+    check(
+        'no Activate/Deactivate on a table with three states, without metadata to read them from, or in a canvas app',
+        on(threeStates, 'Fabrikam', 'deactivate') === null && on(noMetadata, 'Fabrikam', 'deactivate') === null
+            && on(stateOnCanvas, 'Fabrikam', 'deactivate') === null,
+    );
+
+    const viewWithoutStatus = bind({
+        inputs: { showStateCommands: true },
+        columns: fixture.columns.filter((column) => column.name !== 'statecode'),
+    });
+
+    await ready(viewWithoutStatus);
+
+    check(
+        'a view without Status: the control asks for statecode (P4), offers the commands, and does not draw the column',
+        callsLike(viewWithoutStatus, 'addColumn').join() === 'addColumn("statecode")'
+            && on(viewWithoutStatus, 'Fabrikam', 'deactivate') !== null
+            && dataHeaders(viewWithoutStatus).every((th) => th.textContent.indexOf('Status') === -1),
+        `${callsLike(viewWithoutStatus, 'addColumn').join()} | ${dataHeaders(viewWithoutStatus).map((th) => th.textContent).join(', ')}`,
+    );
+
+    /* =========================================== 0.3.0: over the selection */
+
+    const bulkHeard = [];
+    const choosing = bind({
+        inputs: { showSelection: true, showStateCommands: true, commands: COMMANDS },
+        contextInfo: FORM,
+        events: { onRowCommand: (payload) => bulkHeard.push(payload) },
+    });
+
+    await ready(choosing);
+
+    for (const name of ['Fabrikam', 'Contoso', 'Litware']) {
+        change(rowNamed(choosing, name).querySelector('.RowCommands-select'));
+    }
+
+    const barNames = choosing.findAll('.RowCommands-bulkButton').map((button) => button.dataset.focus);
+
+    check(
+        'the bar offers Activate selected, Deactivate selected and the commands marked for the selection',
+        ['bulk:activate', 'bulk:deactivate', 'bulk:command:approve', 'bulk:command:escalate'].every((name) => barNames.includes(name))
+            && !barNames.includes('bulk:command:hold'),
+        barNames.join(' '),
+    );
+
+    press(choosing.findAll('.RowCommands-bulkButton').find((button) => button.dataset.focus === 'bulk:deactivate'));
+    await ready(choosing);
+
+    check(
+        'Deactivate selected skips the inactive row, asks once naming the two it will change, and writes them one by one',
+        callsLike(choosing, 'navigation.openConfirmDialog').join().indexOf('Deactivate selected will be applied to 2 records.') !== -1
+            && callsLike(choosing, 'webAPI.updateRecord').map((call) => JSON.parse(call.slice(call.indexOf('(') + 1, -1)).id).join() === 'a01,a02',
+        `${callsLike(choosing, 'navigation.openConfirmDialog').join()} | ${callsLike(choosing, 'webAPI.updateRecord').join(' | ')}`,
+    );
+
+    check(
+        'and reports deactivateSelected with the rows it changed, then says how many',
+        choosing.outputs().invokedCommand === 'deactivateSelected' && choosing.outputs().invokedRecordId === 'a01,a02'
+            && choosing.find('.RowCommands-status').textContent === '2 records were updated.',
+        `${JSON.stringify(choosing.outputs())} | ${choosing.find('.RowCommands-status').textContent}`,
+    );
+
+    const escalateAll = choosing.findAll('.RowCommands-bulkButton').find((button) => button.dataset.focus === 'bulk:command:escalate');
+
+    if (escalateAll) {
+        press(escalateAll);
+        await settled();
+    }
+
+    check(
+        'a press-only command over the selection asks nothing, and reports and raises every selected row',
+        escalateAll !== undefined && choosing.outputs().invokedCommand === 'escalateSelected'
+            && bulkHeard.some((payload) => payload.command === 'escalate' && payload.recordIds.length === 3),
+        `${JSON.stringify(choosing.outputs())} | ${JSON.stringify(bulkHeard)}`,
     );
 
     disposeAll();

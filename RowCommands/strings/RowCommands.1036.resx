@@ -125,6 +125,96 @@
   <data name="OnRowCommand_Desc" xml:space="preserve">
     <value>Déclenché lorsqu'une commande que vous avez définie est utilisée. Un script de formulaire s'y abonne avec addEventHandler sur cette sous-grille.</value>
   </data>
+  <data name="Commands_Name" xml:space="preserve">
+    <value>Vos commandes</value>
+  </data>
+  <data name="Commands_Desc" xml:space="preserve">
+    <value>Vos propres commandes, en JSON ou par le nom d'une ressource web qui le contient. Chacune définit des colonnes de la ligne, ou signale un clic à un script de formulaire ou à une formule.</value>
+  </data>
+  <data name="ShowStateCommands_Name" xml:space="preserve">
+    <value>Afficher Activer et Désactiver</value>
+  </data>
+  <data name="ShowStateCommands_Desc" xml:space="preserve">
+    <value>Activer ou Désactiver sur chaque ligne, et les deux sur une sélection. Uniquement pour une table dont le statut est Actif et Inactif.</value>
+  </data>
+  <data name="RowCommands_Activate" xml:space="preserve">
+    <value>Activer</value>
+  </data>
+  <data name="RowCommands_Deactivate" xml:space="preserve">
+    <value>Désactiver</value>
+  </data>
+  <data name="RowCommands_ActivateRecord" xml:space="preserve">
+    <value>Activer {0}</value>
+  </data>
+  <data name="RowCommands_DeactivateRecord" xml:space="preserve">
+    <value>Désactiver {0}</value>
+  </data>
+  <data name="RowCommands_Activated" xml:space="preserve">
+    <value>{0} a été activé.</value>
+  </data>
+  <data name="RowCommands_Deactivated" xml:space="preserve">
+    <value>{0} a été désactivé.</value>
+  </data>
+  <data name="RowCommands_StateFailed" xml:space="preserve">
+    <value>{0} n'a pas pu être modifié.</value>
+  </data>
+  <data name="RowCommands_CommandRecord" xml:space="preserve">
+    <value>{0} : {1}</value>
+  </data>
+  <data name="RowCommands_CommandDone" xml:space="preserve">
+    <value>{0} : {1} a été mis à jour.</value>
+  </data>
+  <data name="RowCommands_CommandFailed" xml:space="preserve">
+    <value>{0} : {1} n'a pas pu être mis à jour.</value>
+  </data>
+  <data name="RowCommands_CommandConfirm" xml:space="preserve">
+    <value>Continuer</value>
+  </data>
+  <data name="RowCommands_ActivateSelected" xml:space="preserve">
+    <value>Activer la sélection</value>
+  </data>
+  <data name="RowCommands_DeactivateSelected" xml:space="preserve">
+    <value>Désactiver la sélection</value>
+  </data>
+  <data name="RowCommands_UpdateSelectedText" xml:space="preserve">
+    <value>{0} sera appliqué à {1} enregistrements.</value>
+  </data>
+  <data name="RowCommands_UpdatingProgress" xml:space="preserve">
+    <value>Mise à jour de {0} sur {1}…</value>
+  </data>
+  <data name="RowCommands_UpdatedMany" xml:space="preserve">
+    <value>{0} enregistrements ont été mis à jour.</value>
+  </data>
+  <data name="RowCommands_UpdatedSome" xml:space="preserve">
+    <value>{0} sur {1} mis à jour ; {2} en échec.</value>
+  </data>
+  <data name="RowCommands_UpdateStopped" xml:space="preserve">
+    <value>Arrêté après {0} sur {1}.</value>
+  </data>
+  <data name="RowCommands_UpdateCancelled" xml:space="preserve">
+    <value>Rien n'a été modifié.</value>
+  </data>
+  <data name="RowCommands_UpdateSelectedFailed" xml:space="preserve">
+    <value>Certains enregistrements n'ont pas pu être mis à jour.</value>
+  </data>
+  <data name="RowCommands_NothingToUpdate" xml:space="preserve">
+    <value>Les enregistrements sélectionnés ont déjà cette valeur.</value>
+  </data>
+  <data name="RowCommands_ConfigNotFound" xml:space="preserve">
+    <value>Vos commandes : la ressource web {0} est introuvable. Vérifiez le nom, et qu'elle est publiée.</value>
+  </data>
+  <data name="RowCommands_ConfigDenied" xml:space="preserve">
+    <value>Vos commandes : la ressource web {0} n'a pas pu être lue ({1}).</value>
+  </data>
+  <data name="RowCommands_ConfigOffline" xml:space="preserve">
+    <value>Vos commandes n'ont pas pu être chargées : le réseau est indisponible.</value>
+  </data>
+  <data name="RowCommands_ConfigInvalid" xml:space="preserve">
+    <value>Vos commandes n'ont pas pu être lues : {0}.</value>
+  </data>
+  <data name="RowCommands_ConfigNoHost" xml:space="preserve">
+    <value>Vos commandes : une ressource web ne peut être lue que dans une application pilotée par modèle. Dans une application canevas, placez le JSON dans la propriété elle-même.</value>
+  </data>
   <data name="RowCommands_Loading" xml:space="preserve">
     <value>Chargement des enregistrements…</value>
   </data>

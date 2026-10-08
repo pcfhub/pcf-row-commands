@@ -1,9 +1,10 @@
 import { IInputs, IOutputs } from './generated/ManifestTypes';
 import { BulkItem, BulkResult, runSequential } from './bulk';
-import { canDeleteByRole } from './privileges';
+import { CommandDef, IconName, columnsWritten, holdsAll, labelFor } from './config';
+import { ConfigLoad, Fetch, loadCommands } from './configLoader';
+import { PRIVILEGE_WRITE, canByRole, canDeleteByRole } from './privileges';
+import { StateOption, isActiveInactive, readState, stateOptionsFrom, statePayload, targetState } from './state';
 import { pageState, prune, sameSet, toggle, togglePage } from './selection';
-// THROWAWAY: the 0.2.5 probe for 0.3.0. Delete with probe.ts before 0.3.0.
-import { probe } from './probe';
 import {
     Layout,
     MAX_WIDTH,
@@ -63,8 +64,16 @@ const COMMANDS_WIDTH_COMPACT = 152;
 /** The selection column: a 20px checkbox and the cell's padding. Never stretched. */
 const SELECT_WIDTH = 44;
 
-/** The commands, as they appear on `invokedCommand`. */
-type CommandName = 'open' | 'url' | 'delete' | 'deleteSelected';
+/**
+ * A command as it appears on `invokedCommand`: `open`, `url`, `delete`,
+ * `activate`, `deactivate`, a maker's command `name`, and each of the last
+ * four with `Selected` after it for a selection. A string since 0.3.0,
+ * because the maker names some of them.
+ */
+type CommandName = string;
+
+/** A maker's command or an Activate/Deactivate over the selection. */
+type SelectionUpdate = { kind: 'state'; target: 0 | 1 } | { kind: 'custom'; command: CommandDef };
 
 /**
  * `localStorage`, read through a function because **the access itself can
@@ -182,10 +191,32 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * A bulk delete in flight, or `null`. `stop` is the Stop button's only
      * effect: the record in flight finishes, and the next is not started.
      */
-    private bulk: { done: number; total: number; stop: boolean } | null = null;
+    private bulk: { done: number; total: number; stop: boolean; kind: 'delete' | 'update' } | null = null;
 
     /** The progress line, updated in place so the Stop button keeps focus. */
     private progressText: HTMLElement | null = null;
+
+    /**
+     * The maker's commands as last loaded, and the property value they were
+     * loaded from — a new value reloads, the same one never does. `configToken`
+     * drops an answer that arrives after a newer value was asked for.
+     */
+    private config: ConfigLoad = { state: 'none' };
+    private configRaw: string | null = null;
+    private configToken = 0;
+
+    /**
+     * Columns this control asked the dataset for with `addColumn` — the state,
+     * and the columns a maker's command writes — so it can read them without
+     * drawing them: they are not the maker's view.
+     */
+    private readonly requested = new Set<string>();
+
+    /** Each table's Status options, `'loading'` while `getEntityMetadata` is out. */
+    private readonly stateOptions = new Map<string, StateOption[] | null | 'loading'>();
+
+    /** `canByRole` for Write, per table. */
+    private readonly writeRoles = new Map<string, boolean | null>();
 
     /** `canDeleteByRole` per table. Roles do not change inside a session. */
     private readonly roles = new Map<string, boolean | null>();
@@ -279,13 +310,14 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
         this.latest = { context, dataset };
 
-        // THROWAWAY: the 0.2.5 probe for 0.3.0.
-        probe(context, dataset, (id, command) => this.report(id, command as CommandName));
 
         this.applyTheme(context);
         this.applyWidth(context);
         this.applyHeight(context);
         this.applyPageSize(context, dataset);
+        this.applyConfig(context);
+        this.requestColumns(context, dataset);
+        this.loadStateOptions(context, dataset);
 
         if (this.resizing) {
             this.renderOwed = true;
@@ -525,7 +557,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         // designer. A table that ignores either looks broken to whoever set
         // them.
         const columns = (dataset.columns ?? [])
-            .filter((column) => !column.isHidden)
+            .filter((column) => !column.isHidden && !this.requested.has(column.name))
             .sort((a, b) => a.order - b.order);
 
         if (columns.length === 0) {
@@ -679,7 +711,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         }
 
         const names = columns.map((column) => column.name);
-        const commands = this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH;
+        const commands = (this.compact ? COMMANDS_WIDTH_COMPACT : COMMANDS_WIDTH) + this.extraCommandsWidth(context, dataset, getString);
         const fixed = selectable ? SELECT_WIDTH : 0;
         const allocated = context.mode.allocatedWidth;
 
@@ -1216,6 +1248,21 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             bar.appendChild(remove);
         }
 
+        // Since 0.3.0: the same gates as the row's own buttons, and idle only.
+        if (!context.mode.isControlDisabled && this.pending === '') {
+            if (this.stateOffered(context, dataset)) {
+                bar.appendChild(this.barButton('activate', getString('RowCommands_ActivateSelected'), () =>
+                    this.askToUpdateSelected(context, dataset, columns, { kind: 'state', target: 0 }, getString), GLYPH_ACTIVATE, true));
+                bar.appendChild(this.barButton('deactivate', getString('RowCommands_DeactivateSelected'), () =>
+                    this.askToUpdateSelected(context, dataset, columns, { kind: 'state', target: 1 }, getString), GLYPH_DEACTIVATE, true));
+            }
+
+            for (const command of this.customCommands(context, dataset).filter((candidate) => candidate.selection)) {
+                bar.appendChild(this.barButton(`command:${command.name}`, labelFor(command, languageOf(context)), () =>
+                    this.askToUpdateSelected(context, dataset, columns, { kind: 'custom', command }, getString), GLYPH_CUSTOM[command.icon], true));
+            }
+        }
+
         bar.appendChild(
             this.barButton('clear', getString('RowCommands_ClearSelection'), () => {
                 this.clearSelection(dataset);
@@ -1226,7 +1273,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         return bar;
     }
 
-    private barButton(name: string, text: string, run: () => void, glyph?: string): HTMLButtonElement {
+    private barButton(name: string, text: string, run: () => void, glyph?: string, stroked = false): HTMLButtonElement {
         const button = document.createElement('button');
 
         button.type = 'button';
@@ -1234,7 +1281,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         button.dataset.focus = `bulk:${name}`;
 
         if (glyph) {
-            button.appendChild(icon(glyph));
+            button.appendChild(stroked ? strokedIcon(glyph) : icon(glyph));
         }
 
         button.appendChild(document.createTextNode(text));
@@ -1254,7 +1301,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             return '';
         }
 
-        return getString('RowCommands_DeletingProgress')
+        return getString(bulk.kind === 'update' ? 'RowCommands_UpdatingProgress' : 'RowCommands_DeletingProgress')
             .replace('{0}', String(Math.min(bulk.done + 1, bulk.total)))
             .replace('{1}', String(bulk.total));
     }
@@ -1352,7 +1399,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                 }
 
                 this.report(ids.join(','), 'deleteSelected');
-                this.bulk = { done: 0, total: ids.length, stop: false };
+                this.bulk = { done: 0, total: ids.length, stop: false, kind: 'delete' };
                 this.announce(getString('RowCommands_DeletingStarted').replace('{0}', count));
                 this.rerender();
 
@@ -1396,7 +1443,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             return;
         }
 
-        const gone = result.deleted.map((item) => item.id);
+        const gone = result.done.map((item) => item.id);
 
         this.selected = this.selected.filter((id) => !gone.includes(id));
 
@@ -1409,7 +1456,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             }
         }
 
-        const deleted = String(result.deleted.length);
+        const deleted = String(result.done.length);
 
         if (result.failed.length > 0) {
             this.announce(
@@ -1521,7 +1568,669 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             );
         }
 
+        const idle = enabled && this.pending === '' && this.bulk === null;
+
+        /*
+         * Since 0.3.0. Activate on an inactive row, Deactivate on an active
+         * one — read from the row's own `statecode`, which this control asks
+         * the dataset for when the view does not carry it (P4). A row whose
+         * state cannot be read gets neither.
+         */
+        if (this.stateOffered(context, dataset)) {
+            const target = targetState(readState(dataset.records[id]?.getValue('statecode')));
+
+            if (target !== null) {
+                const name = target === 1 ? 'deactivate' : 'activate';
+
+                group.appendChild(
+                    this.command(
+                        name,
+                        target === 1 ? GLYPH_DEACTIVATE : GLYPH_ACTIVATE,
+                        getString(target === 1 ? 'RowCommands_Deactivate' : 'RowCommands_Activate'),
+                        getString(target === 1 ? 'RowCommands_DeactivateRecord' : 'RowCommands_ActivateRecord').replace('{0}', label),
+                        idle,
+                        () => this.runState(context, dataset, id, label, target, getString),
+                        true,
+                    ),
+                );
+            }
+        }
+
+        /*
+         * The maker's own. A command that writes is left off a row that
+         * already holds every value it would write — an Approve on an
+         * approved row does nothing anybody can see — and waits, like Delete,
+         * while another write is in flight. A press-only command writes
+         * nothing and is never held up.
+         */
+        const language = languageOf(context);
+
+        for (const command of this.customCommands(context, dataset)) {
+            if (command.set && holdsAll(command.set, (column) => this.readColumn(dataset, id, column))) {
+                continue;
+            }
+
+            const text = labelFor(command, language);
+
+            group.appendChild(
+                this.command(
+                    command.name,
+                    GLYPH_CUSTOM[command.icon],
+                    text,
+                    getString('RowCommands_CommandRecord').replace('{0}', text).replace('{1}', label),
+                    command.set ? idle : enabled,
+                    () => this.runCustom(context, dataset, command, id, label, getString),
+                    true,
+                ),
+            );
+        }
+
         return group;
+    }
+
+    /* ------------------------------------------------ 0.3.0: maker's commands */
+
+    /**
+     * Load the maker's commands when the property changes — the JSON itself,
+     * or the web resource it names (`configLoader.ts`). A load in flight for an
+     * older value is dropped by `configToken`, and a problem is said once, as
+     * an error that stays: the built-in commands carry on either way.
+     */
+    private applyConfig(context: ComponentFramework.Context<IInputs>): void {
+        const raw = typeof context.parameters.commands?.raw === 'string' ? context.parameters.commands.raw : '';
+
+        if (raw === this.configRaw) {
+            return;
+        }
+
+        this.configRaw = raw;
+        this.configToken += 1;
+
+        if (raw.trim() === '') {
+            this.config = { state: 'none' };
+            return;
+        }
+
+        const token = this.configToken;
+        const fetchFn = typeof globalThis.fetch === 'function'
+            ? (globalThis.fetch.bind(globalThis) as unknown as Fetch)
+            : undefined;
+
+        void loadCommands(raw, organisationUrl(context), fetchFn).then((load) => {
+            if (this.disposed || token !== this.configToken) {
+                return;
+            }
+
+            this.config = load;
+
+            const problem = this.configProblem(context, load);
+
+            if (problem !== null) {
+                this.announce(problem, 'error');
+            }
+
+            if (this.latest) {
+                this.requestColumns(this.latest.context, this.latest.dataset);
+                this.rerender();
+            }
+        });
+    }
+
+    private configProblem(context: ComponentFramework.Context<IInputs>, load: ConfigLoad): string | null {
+        const getString = (id: string): string => context.resources.getString(id);
+
+        switch (load.state) {
+            case 'invalid':
+                return getString('RowCommands_ConfigInvalid').replace('{0}', load.problem);
+            case 'notFound':
+                return getString('RowCommands_ConfigNotFound').replace('{0}', load.name);
+            case 'denied':
+            case 'failed':
+                return getString('RowCommands_ConfigDenied').replace('{0}', load.name).replace('{1}', String(load.status));
+            case 'offline':
+                return getString('RowCommands_ConfigOffline');
+            case 'noHost':
+                return getString('RowCommands_ConfigNoHost');
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Ask the dataset for the columns the commands read — `statecode` for
+     * Activate/Deactivate, and every column a maker's command writes, so a row
+     * already holding the value can be told apart. Measured 2026-10-08 (P4):
+     * `addColumn` and one `refresh()` bring a column the view lacks.
+     *
+     * **Once per column**, guarded by `requested`, which is what keeps this
+     * from looping in `updateView`: a column the table does not have never
+     * arrives, and is never asked for again. Only once the view has drawn,
+     * so a column the view already carries is never mistaken for a missing one.
+     */
+    private requestColumns(context: ComponentFramework.Context<IInputs>, dataset: DataSet): void {
+        const columns = dataset.columns ?? [];
+
+        if (typeof dataset.addColumn !== 'function' || dataset.loading || columns.length === 0) {
+            return;
+        }
+
+        const wanted = this.config.state === 'ready' ? columnsWritten(this.config.commands) : [];
+
+        if (asBoolean(context.parameters.showStateCommands?.raw, false)) {
+            wanted.push('statecode');
+        }
+
+        const have = new Set(columns.map((column) => column.name));
+        let asked = false;
+
+        for (const name of wanted) {
+            if (have.has(name) || this.requested.has(name)) {
+                continue;
+            }
+
+            this.requested.add(name);
+
+            try {
+                dataset.addColumn(name);
+                asked = true;
+            } catch {
+                // A host that refuses the column: the command is offered on
+                // every row, and the server's answer is the check.
+            }
+        }
+
+        if (asked) {
+            dataset.refresh();
+        }
+    }
+
+    /**
+     * The table's Status options, once per table, for two decisions: whether
+     * the table is a plain Active/Inactive one at all, and the default reason
+     * each state is written with (P5). No `getEntityMetadata` — canvas, or a
+     * host without Utility — and no commands: guessing a table's states is how
+     * a case gets "deactivated" into Resolved.
+     */
+    private loadStateOptions(context: ComponentFramework.Context<IInputs>, dataset: DataSet): void {
+        if (!asBoolean(context.parameters.showStateCommands?.raw, false)) {
+            return;
+        }
+
+        const table = dataset.getTargetEntityType();
+
+        if (!table || this.stateOptions.has(table)) {
+            return;
+        }
+
+        const utils = (context as { utils?: { getEntityMetadata?: (table: string, columns: string[]) => unknown } }).utils;
+
+        if (typeof utils?.getEntityMetadata !== 'function') {
+            this.stateOptions.set(table, null);
+            return;
+        }
+
+        this.stateOptions.set(table, 'loading');
+
+        let asking: Promise<unknown>;
+
+        try {
+            asking = Promise.resolve(utils.getEntityMetadata(table, ['statecode']));
+        } catch (error) {
+            asking = Promise.reject(error);
+        }
+
+        void asking
+            .then((metadata) => stateOptionsFrom(metadata), () => null)
+            .then((options) => {
+                if (this.disposed) {
+                    return;
+                }
+
+                this.stateOptions.set(table, options);
+                this.rerender();
+            });
+    }
+
+    /** Whether a host can write a row at all: the Web API, on a model-driven host. */
+    private canWrite(context: ComponentFramework.Context<IInputs>): boolean {
+        return typeof context.webAPI?.updateRecord === 'function' && modelDrivenHost(context);
+    }
+
+    private writeAllowed(context: ComponentFramework.Context<IInputs>, dataset: DataSet): boolean | null {
+        const table = dataset.getTargetEntityType();
+
+        if (!this.writeRoles.has(table)) {
+            this.writeRoles.set(table, canByRole((context as { utils?: unknown }).utils, table, PRIVILEGE_WRITE));
+        }
+
+        return this.writeRoles.get(table) ?? null;
+    }
+
+    /**
+     * Whether Activate/Deactivate is offered at all: the maker turned it on,
+     * the host can write, the user's roles allow Write somewhere (`null`, the
+     * host cannot say, offers it and leaves the refusal to the server), and
+     * the table's Status is exactly Active and Inactive.
+     */
+    private stateOffered(context: ComponentFramework.Context<IInputs>, dataset: DataSet): boolean {
+        if (!asBoolean(context.parameters.showStateCommands?.raw, false) || !this.canWrite(context)) {
+            return false;
+        }
+
+        const options = this.stateOptions.get(dataset.getTargetEntityType());
+
+        return options !== 'loading' && isActiveInactive(options ?? null) && this.writeAllowed(context, dataset) !== false;
+    }
+
+    /**
+     * The maker's commands this host can carry, whatever the row:
+     *
+     *   - **A command that writes** needs a host that can write, a role that
+     *     allows Write, and — when it asks for a confirmation — a host that
+     *     can ask. A maker who wrote `confirm` gets the question or no button.
+     *   - **A press-only command** needs somebody listening. On a form, a
+     *     form script reads the outputs (`addOnOutputChange`, measured P7); in
+     *     a canvas app, `OnChange` does. **A main grid has neither** — no form
+     *     and no script (P2: no `entityId`) — so a button there would press
+     *     into nothing, and it is not drawn.
+     */
+    private customCommands(context: ComponentFramework.Context<IInputs>, dataset: DataSet): CommandDef[] {
+        if (this.config.state !== 'ready') {
+            return [];
+        }
+
+        const writes = this.canWrite(context) && this.writeAllowed(context, dataset) !== false;
+        const canAsk = typeof context.navigation?.openConfirmDialog === 'function';
+        const heard = !modelDrivenHost(context) || formRecordId(context) !== null;
+
+        return this.config.commands.filter((command) =>
+            command.set ? writes && (command.confirm === null || canAsk) : heard,
+        );
+    }
+
+    /** A column's raw value on a row, or `undefined` when the dataset does not carry the column. */
+    private readColumn(dataset: DataSet, id: string, column: string): unknown {
+        if (!(dataset.columns ?? []).some((candidate) => candidate.name === column)) {
+            return undefined;
+        }
+
+        return dataset.records[id]?.getValue(column);
+    }
+
+    /**
+     * The width the command column needs for the commands 0.3.0 adds, on top
+     * of the three it always had room for — estimated from each label, since
+     * nothing here can measure text, and the cell wraps when the guess is
+     * short rather than clipping.
+     */
+    private extraCommandsWidth(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        getString: (id: string) => string,
+    ): number {
+        const labels: string[] = this.customCommands(context, dataset).map((command) => labelFor(command, languageOf(context)));
+
+        if (this.stateOffered(context, dataset)) {
+            const activate = getString('RowCommands_Activate');
+            const deactivate = getString('RowCommands_Deactivate');
+
+            labels.push(activate.length > deactivate.length ? activate : deactivate);
+        }
+
+        return labels.reduce(
+            (sum, text) => sum + (this.compact ? COMPACT_COMMAND : 36 + Math.ceil(text.length * 7.5)),
+            0,
+        );
+    }
+
+    /**
+     * Raise `onRowCommand` beside the outputs. **Not delivered on a subgrid as
+     * measured** (P1) — the outputs are the channel that works — and raised all
+     * the same, for a host that delivers it. Feature-detected, and the handler
+     * is somebody else's code, so it is caught.
+     */
+    private raise(context: ComponentFramework.Context<IInputs>, dataset: DataSet, command: string, recordIds: string[]): void {
+        const events = (context as unknown as { events?: { onRowCommand?: (payload: unknown) => void } }).events;
+
+        if (typeof events?.onRowCommand !== 'function') {
+            return;
+        }
+
+        try {
+            events.onRowCommand({
+                command,
+                recordIds: [...recordIds],
+                entityName: dataset.getTargetEntityType(),
+                refresh: () => {
+                    if (!this.disposed && this.latest) {
+                        this.latest.dataset.refresh();
+                    }
+                },
+            });
+        } catch (error) {
+            console.error('[RowCommands] an onRowCommand handler threw', error);
+        }
+    }
+
+    /**
+     * One of the maker's commands, on one row.
+     *
+     * **Press-only**: report and raise, at the press — nothing else happens.
+     * **A command that writes**: ask first if it says to, write its columns in
+     * one `updateRecord`, and only then report — so a form script reading the
+     * outputs reads a row that already changed — and refresh once.
+     */
+    private runCustom(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        command: CommandDef,
+        id: string,
+        label: string,
+        getString: (id: string) => string,
+    ): void {
+        if (!command.set) {
+            this.report(id, command.name);
+            this.raise(context, dataset, command.name, [id]);
+
+            return;
+        }
+
+        const set = command.set;
+        const webAPI = context.webAPI;
+        const navigation = context.navigation;
+
+        if (!this.canWrite(context) || this.pending !== '' || this.bulk || !webAPI) {
+            return;
+        }
+
+        const text = labelFor(command, languageOf(context));
+        const asking: Promise<{ confirmed: boolean } | undefined> = command.confirm !== null && navigation
+            ? Promise.resolve(
+                navigation.openConfirmDialog({
+                    title: text,
+                    text: command.confirm.replace('{0}', label),
+                    confirmButtonLabel: getString('RowCommands_CommandConfirm'),
+                    cancelButtonLabel: getString('RowCommands_DeleteCancel'),
+                }),
+            )
+            : Promise.resolve({ confirmed: true });
+
+        this.pending = id;
+        this.rerender();
+
+        void asking
+            .then((response) => {
+                if (this.disposed) {
+                    return undefined;
+                }
+
+                if (!response?.confirmed) {
+                    this.announce(getString('RowCommands_UpdateCancelled'));
+                    return undefined;
+                }
+
+                return webAPI.updateRecord(dataset.getTargetEntityType(), id, { ...set }).then(() => {
+                    if (this.disposed) {
+                        return;
+                    }
+
+                    this.report(id, command.name);
+                    this.raise(context, dataset, command.name, [id]);
+                    this.announce(getString('RowCommands_CommandDone').replace('{0}', text).replace('{1}', label), 'success');
+                    dataset.refresh();
+                });
+            })
+            .catch((error: unknown) => {
+                if (!this.disposed) {
+                    this.refused(context, getString('RowCommands_CommandFailed').replace('{0}', text).replace('{1}', label), describeError(error));
+                }
+            })
+            .then(() => {
+                this.pending = '';
+                this.rerender();
+            });
+    }
+
+    /**
+     * Activate or Deactivate one row: the state and its default reason in one
+     * update (P5 — a reason alone into the other state is refused), no
+     * confirmation (it is undone by the other button), then report and
+     * refresh. A view of active rows loses the row on that refresh, which is
+     * the point of deactivating it.
+     */
+    private runState(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        id: string,
+        label: string,
+        target: 0 | 1,
+        getString: (id: string) => string,
+    ): void {
+        const webAPI = context.webAPI;
+
+        if (!this.stateOffered(context, dataset) || this.pending !== '' || this.bulk || !webAPI) {
+            return;
+        }
+
+        const table = dataset.getTargetEntityType();
+        const options = this.stateOptions.get(table);
+        const payload = statePayload(target, options === 'loading' ? null : options ?? null);
+
+        this.pending = id;
+        this.rerender();
+
+        void webAPI
+            .updateRecord(table, id, payload)
+            .then(() => {
+                if (this.disposed) {
+                    return;
+                }
+
+                this.report(id, target === 1 ? 'deactivate' : 'activate');
+                this.announce(getString(target === 1 ? 'RowCommands_Deactivated' : 'RowCommands_Activated').replace('{0}', label), 'success');
+                dataset.refresh();
+            })
+            .catch((error: unknown) => {
+                if (!this.disposed) {
+                    this.refused(context, getString('RowCommands_StateFailed').replace('{0}', label), describeError(error));
+                }
+            })
+            .then(() => {
+                this.pending = '';
+                this.rerender();
+            });
+    }
+
+    /**
+     * A write the server refused: said in the live region, where it stays,
+     * and in the platform's error dialog with the server's own reason under
+     * Details. The dialog's own refusal is swallowed — the line above has
+     * already said what happened.
+     */
+    private refused(context: ComponentFramework.Context<IInputs>, message: string, detail: string): void {
+        this.announce(message, 'error');
+
+        const navigation = context.navigation;
+
+        if (typeof navigation?.openErrorDialog === 'function') {
+            void navigation.openErrorDialog({ message, details: detail }).catch(() => undefined);
+        }
+    }
+
+    /**
+     * A command over the selection: Activate/Deactivate selected, or one of
+     * the maker's commands marked `selection`.
+     *
+     * The rows it would change are worked out first — a Deactivate skips the
+     * inactive rows, a command skips the rows already holding its values —
+     * and a selection where that is none says so instead of asking. One row
+     * left takes the row's own path, with its own wording. Otherwise: one
+     * confirmation naming the count, one record at a time with Stop
+     * (`bulk.ts`, as Delete selected), one refresh, and the outputs carry only
+     * the rows it succeeded on. A press-only command reports the selection at
+     * the press, and asks nothing.
+     */
+    private askToUpdateSelected(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        columns: Column[],
+        update: SelectionUpdate,
+        getString: (id: string) => string,
+    ): void {
+        const ids = [...this.selected];
+
+        if (ids.length === 0) {
+            return;
+        }
+
+        if (update.kind === 'custom' && !update.command.set) {
+            this.report(ids.join(','), `${update.command.name}Selected`);
+            this.raise(context, dataset, update.command.name, ids);
+
+            return;
+        }
+
+        const navigation = context.navigation;
+        const webAPI = context.webAPI;
+
+        if (!this.canWrite(context) || this.pending !== '' || this.bulk || !webAPI || typeof navigation?.openConfirmDialog !== 'function') {
+            return;
+        }
+
+        const primary = columns.find((column) => column.isPrimary) ?? columns[0];
+        const labelOf = (id: string): string => {
+            const value = textOf(dataset.records[id]?.getFormattedValue(primary.name));
+
+            return value !== '' ? value : getString('RowCommands_Untitled');
+        };
+        const table = dataset.getTargetEntityType();
+        const options = this.stateOptions.get(table);
+        const applies = (id: string): boolean => {
+            if (update.kind === 'state') {
+                return readState(dataset.records[id]?.getValue('statecode')) === (update.target === 1 ? 0 : 1);
+            }
+
+            return !holdsAll(update.command.set ?? {}, (column) => this.readColumn(dataset, id, column));
+        };
+        const targets = ids.filter(applies);
+
+        if (targets.length === 0) {
+            this.announce(getString('RowCommands_NothingToUpdate'));
+            return;
+        }
+
+        if (targets.length === 1) {
+            if (update.kind === 'state') {
+                this.runState(context, dataset, targets[0], labelOf(targets[0]), update.target, getString);
+            } else {
+                this.runCustom(context, dataset, update.command, targets[0], labelOf(targets[0]), getString);
+            }
+
+            return;
+        }
+
+        const name = update.kind === 'state' ? (update.target === 1 ? 'deactivate' : 'activate') : update.command.name;
+        const text = update.kind === 'state'
+            ? getString(update.target === 1 ? 'RowCommands_DeactivateSelected' : 'RowCommands_ActivateSelected')
+            : labelFor(update.command, languageOf(context));
+        const payload: Record<string, unknown> = update.kind === 'state'
+            ? statePayload(update.target, options === 'loading' ? null : options ?? null)
+            : { ...update.command.set };
+        const items: BulkItem[] = targets.map((id) => ({ id, label: labelOf(id) }));
+
+        this.pending = 'bulk';
+
+        void navigation
+            .openConfirmDialog({
+                title: text,
+                text: getString('RowCommands_UpdateSelectedText').replace('{0}', text).replace('{1}', String(targets.length)),
+                confirmButtonLabel: getString('RowCommands_CommandConfirm'),
+                cancelButtonLabel: getString('RowCommands_DeleteCancel'),
+            })
+            .then((response) => {
+                if (this.disposed) {
+                    return undefined;
+                }
+
+                if (!response?.confirmed) {
+                    this.announce(getString('RowCommands_UpdateCancelled'));
+                    return undefined;
+                }
+
+                this.bulk = { done: 0, total: targets.length, stop: false, kind: 'update' };
+                this.rerender();
+
+                return runSequential(items, (id) => webAPI.updateRecord(table, id, { ...payload }), {
+                    shouldStop: () => this.disposed || this.bulk === null || this.bulk.stop,
+                    onProgress: (done) => {
+                        if (this.bulk) {
+                            this.bulk.done = done;
+                        }
+
+                        if (this.progressText) {
+                            this.progressText.textContent = this.progressLine(getString);
+                        }
+                    },
+                    describe: describeError,
+                }).then((result) => this.finishUpdate(context, dataset, result, targets.length, name, update, getString));
+            })
+            .catch(() => {
+                // Only the dialog can land here — `runSequential` never rejects.
+                if (!this.disposed) {
+                    this.announce(getString('RowCommands_UpdateSelectedFailed'), 'error');
+                }
+            })
+            .then(() => {
+                this.pending = '';
+                this.bulk = null;
+                this.rerender();
+            });
+    }
+
+    private finishUpdate(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        result: BulkResult,
+        total: number,
+        name: string,
+        update: SelectionUpdate,
+        getString: (id: string) => string,
+    ): void {
+        if (this.disposed) {
+            return;
+        }
+
+        const changed = result.done.map((item) => item.id);
+
+        if (changed.length > 0) {
+            this.report(changed.join(','), `${name}Selected`);
+
+            if (update.kind === 'custom') {
+                this.raise(context, dataset, name, changed);
+            }
+
+            // The rows show the change on the fetch, not the call. Once.
+            (this.latest?.dataset ?? dataset).refresh();
+        }
+
+        const done = String(result.done.length);
+
+        if (result.failed.length > 0) {
+            this.refused(
+                context,
+                getString('RowCommands_UpdatedSome').replace('{0}', done).replace('{1}', String(total)).replace('{2}', String(result.failed.length)),
+                result.failed.map((item) => `${item.label}: ${item.detail}`).join('\n'),
+            );
+
+            return;
+        }
+
+        if (result.stopped) {
+            this.announce(getString('RowCommands_UpdateStopped').replace('{0}', done).replace('{1}', String(total)));
+            return;
+        }
+
+        this.announce(getString('RowCommands_UpdatedMany').replace('{0}', done), 'success');
     }
 
     /**
@@ -1549,6 +2258,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         title: string,
         enabled: boolean,
         run: () => void,
+        stroked = false,
     ): HTMLButtonElement {
         const button = document.createElement('button');
         const caption = document.createElement('span');
@@ -1561,7 +2271,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         button.title = title;
         button.setAttribute('aria-label', title);
         button.disabled = !enabled;
-        button.append(icon(glyph), caption);
+        button.append(stroked ? strokedIcon(glyph) : icon(glyph), caption);
 
         /*
          * Guarded here rather than trusted to `button.disabled`. A disabled
@@ -2043,6 +2753,14 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
  * that deletes nothing and reports an error.
  */
 function modelDrivenHost(context: ComponentFramework.Context<IInputs>): boolean {
+    return organisationUrl(context) !== null;
+}
+
+/**
+ * The organisation's URL, or `null` on a host that has none — the answer
+ * `modelDrivenHost` rests on, and the base a web resource is fetched from.
+ */
+function organisationUrl(context: ComponentFramework.Context<IInputs>): string | null {
     const ask = <T>(call: () => T): T | undefined => {
         try {
             return call();
@@ -2059,7 +2777,27 @@ function modelDrivenHost(context: ComponentFramework.Context<IInputs>): boolean 
         Xrm?: { Utility?: { getGlobalContext?: () => { getClientUrl?: () => unknown } } };
     }).Xrm?.Utility?.getGlobalContext?.()?.getClientUrl?.());
 
-    return [fromPage, fromGlobal].some((url) => typeof url === 'string' && url !== '');
+    const url = [fromPage, fromGlobal].find((candidate) => typeof candidate === 'string' && candidate !== '');
+
+    return typeof url === 'string' ? url : null;
+}
+
+/**
+ * The record the form around this control is showing, or `null` — a main
+ * grid has none. Measured 2026-10-08 (SPEC.md P2): `contextInfo.entityId` on a
+ * form's subgrid, absent on a main grid. Not in the type definitions.
+ */
+function formRecordId(context: ComponentFramework.Context<IInputs>): string | null {
+    const id = (context.mode as unknown as { contextInfo?: { entityId?: unknown } }).contextInfo?.entityId;
+
+    return typeof id === 'string' && id !== '' ? id : null;
+}
+
+/** The user's language, for a maker's label given per language. */
+function languageOf(context: ComponentFramework.Context<IInputs>): number | undefined {
+    const id = (context.userSettings as { languageId?: unknown } | undefined)?.languageId;
+
+    return typeof id === 'number' ? id : undefined;
 }
 
 function canDelete(context: ComponentFramework.Context<IInputs>): boolean {
@@ -2253,6 +2991,39 @@ function icon(d: string): SVGSVGElement {
     path.setAttribute('fill', 'currentColor');
 
     svg.appendChild(path);
+
+    return svg;
+}
+
+/**
+ * Since 0.3.0: Activate, Deactivate and the glyphs a maker's command can name,
+ * **stroked** on the same 20×20 grid — a ring with a tick, a ring with a slash,
+ * and eight plain marks. Stroked rather than traced from Fluent's filled cuts:
+ * there are ten of them, they sit beside their own labels, and a 1.5px line at
+ * 16px reads as the same family as the chevrons.
+ */
+const GLYPH_ACTIVATE = 'M10 3a7 7 0 1 1 0 14 7 7 0 0 1 0-14Z M7 10.2l2 2 4-4.4';
+const GLYPH_DEACTIVATE = 'M10 3a7 7 0 1 1 0 14 7 7 0 0 1 0-14Z M5.1 5.1l9.8 9.8';
+const GLYPH_CUSTOM: Record<IconName, string> = {
+    run: 'M6.5 4.5v11l9-5.5Z',
+    check: 'M4.5 10.5l3.5 3.5 7.5-8',
+    dismiss: 'M5.5 5.5l9 9M14.5 5.5l-9 9',
+    flag: 'M5.5 17V3.5M5.5 4h9l-2 3.5 2 3.5h-9',
+    send: 'M3.5 10 16.5 4l-4 12-3-5.2Z M9.5 10.8 16.5 4',
+    star: 'M10 3.2l2 4.3 4.6.6-3.4 3.2.9 4.6L10 13.6l-4.1 2.3.9-4.6-3.4-3.2 4.6-.6Z',
+    warning: 'M10 3.5 17 16H3Z M10 8.5v3.5 M10 14.3v.1',
+    archive: 'M3.5 4.5h13v3h-13Z M4.5 7.5v8h11v-8 M8 10.5h4',
+};
+
+/** A compact command: a 32px button and a 4px gap. */
+const COMPACT_COMMAND = 36;
+
+/** A glyph drawn with lines rather than fill — the 0.3.0 commands. */
+function strokedIcon(d: string): SVGSVGElement {
+    const svg = chevron(d);
+
+    svg.classList.remove('RowCommands-chevron');
+    svg.classList.add('RowCommands-icon');
 
     return svg;
 }

@@ -20,13 +20,25 @@
  * rows. A per-record answer costs a request per row, and was declined.
  */
 
-/** `PrivilegeType.Delete`. Write is 3 — measured on a form by pcf-audit-history. */
+/** `PrivilegeType.Delete`. */
 export const PRIVILEGE_DELETE = 4;
+
+/**
+ * `PrivilegeType.Write` — measured on a form by pcf-audit-history, and by this
+ * control on a main grid 2026-10-08 (SPEC.md P6). What a set-column command and
+ * Activate/Deactivate need.
+ */
+export const PRIVILEGE_WRITE = 3;
 
 /** Basic, Local, Deep, Global. */
 const DEPTHS = [0, 1, 2, 3];
 
 export function canDeleteByRole(utils: unknown, table: string): boolean | null {
+    return canByRole(utils, table, PRIVILEGE_DELETE);
+}
+
+/** The same three answers for any privilege: Delete (4), Write (3). */
+export function canByRole(utils: unknown, table: string, privilege: number): boolean | null {
     const ask = (utils as { hasEntityPrivilege?: unknown } | undefined)?.hasEntityPrivilege;
 
     if (table === '' || typeof ask !== 'function') {
@@ -34,7 +46,7 @@ export function canDeleteByRole(utils: unknown, table: string): boolean | null {
     }
 
     try {
-        const answers = DEPTHS.map((depth) => (ask as (t: string, p: number, d: number) => unknown).call(utils, table, PRIVILEGE_DELETE, depth));
+        const answers = DEPTHS.map((depth) => (ask as (t: string, p: number, d: number) => unknown).call(utils, table, privilege, depth));
 
         if (answers.some((answer) => typeof answer !== 'boolean')) {
             return null;

@@ -125,6 +125,96 @@
   <data name="OnRowCommand_Desc" xml:space="preserve">
     <value>Se genera al pulsar un comando que ha definido. Un script de formulario lo enlaza con addEventHandler en esta subcuadrícula.</value>
   </data>
+  <data name="Commands_Name" xml:space="preserve">
+    <value>Sus comandos</value>
+  </data>
+  <data name="Commands_Desc" xml:space="preserve">
+    <value>Sus propios comandos, en JSON o con el nombre de un recurso web que lo contenga. Cada uno establece columnas de la fila o informa de una pulsación a un script de formulario o a una fórmula.</value>
+  </data>
+  <data name="ShowStateCommands_Name" xml:space="preserve">
+    <value>Mostrar Activar y Desactivar</value>
+  </data>
+  <data name="ShowStateCommands_Desc" xml:space="preserve">
+    <value>Activar o Desactivar en cada fila, y ambos sobre una selección. Solo para una tabla cuyo estado sea Activo e Inactivo.</value>
+  </data>
+  <data name="RowCommands_Activate" xml:space="preserve">
+    <value>Activar</value>
+  </data>
+  <data name="RowCommands_Deactivate" xml:space="preserve">
+    <value>Desactivar</value>
+  </data>
+  <data name="RowCommands_ActivateRecord" xml:space="preserve">
+    <value>Activar {0}</value>
+  </data>
+  <data name="RowCommands_DeactivateRecord" xml:space="preserve">
+    <value>Desactivar {0}</value>
+  </data>
+  <data name="RowCommands_Activated" xml:space="preserve">
+    <value>Se activó {0}.</value>
+  </data>
+  <data name="RowCommands_Deactivated" xml:space="preserve">
+    <value>Se desactivó {0}.</value>
+  </data>
+  <data name="RowCommands_StateFailed" xml:space="preserve">
+    <value>No se pudo cambiar {0}.</value>
+  </data>
+  <data name="RowCommands_CommandRecord" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="RowCommands_CommandDone" xml:space="preserve">
+    <value>{0}: se actualizó {1}.</value>
+  </data>
+  <data name="RowCommands_CommandFailed" xml:space="preserve">
+    <value>{0}: no se pudo actualizar {1}.</value>
+  </data>
+  <data name="RowCommands_CommandConfirm" xml:space="preserve">
+    <value>Continuar</value>
+  </data>
+  <data name="RowCommands_ActivateSelected" xml:space="preserve">
+    <value>Activar selección</value>
+  </data>
+  <data name="RowCommands_DeactivateSelected" xml:space="preserve">
+    <value>Desactivar selección</value>
+  </data>
+  <data name="RowCommands_UpdateSelectedText" xml:space="preserve">
+    <value>{0} se aplicará a {1} registros.</value>
+  </data>
+  <data name="RowCommands_UpdatingProgress" xml:space="preserve">
+    <value>Actualizando {0} de {1}…</value>
+  </data>
+  <data name="RowCommands_UpdatedMany" xml:space="preserve">
+    <value>Se actualizaron {0} registros.</value>
+  </data>
+  <data name="RowCommands_UpdatedSome" xml:space="preserve">
+    <value>{0} de {1} actualizados; {2} con errores.</value>
+  </data>
+  <data name="RowCommands_UpdateStopped" xml:space="preserve">
+    <value>Detenido después de {0} de {1}.</value>
+  </data>
+  <data name="RowCommands_UpdateCancelled" xml:space="preserve">
+    <value>No se cambió nada.</value>
+  </data>
+  <data name="RowCommands_UpdateSelectedFailed" xml:space="preserve">
+    <value>No se pudieron actualizar algunos registros.</value>
+  </data>
+  <data name="RowCommands_NothingToUpdate" xml:space="preserve">
+    <value>Los registros seleccionados ya tienen este valor.</value>
+  </data>
+  <data name="RowCommands_ConfigNotFound" xml:space="preserve">
+    <value>Sus comandos: no se encontró el recurso web {0}. Compruebe el nombre y que esté publicado.</value>
+  </data>
+  <data name="RowCommands_ConfigDenied" xml:space="preserve">
+    <value>Sus comandos: no se pudo leer el recurso web {0} ({1}).</value>
+  </data>
+  <data name="RowCommands_ConfigOffline" xml:space="preserve">
+    <value>No se pudieron cargar sus comandos: la red no está disponible.</value>
+  </data>
+  <data name="RowCommands_ConfigInvalid" xml:space="preserve">
+    <value>No se pudieron leer sus comandos: {0}.</value>
+  </data>
+  <data name="RowCommands_ConfigNoHost" xml:space="preserve">
+    <value>Sus comandos: un recurso web solo se puede leer en una aplicación basada en modelos. En una aplicación de lienzo, ponga el JSON en la propia propiedad.</value>
+  </data>
   <data name="RowCommands_Loading" xml:space="preserve">
     <value>Cargando registros…</value>
   </data>

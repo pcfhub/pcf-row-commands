@@ -1,7 +1,7 @@
 /**
- * Deleting a selection, one record at a time — a decision module: the delete
- * itself is handed in, so the suite can drive the order, a failure halfway and
- * a Stop without a platform.
+ * Acting on a selection, one record at a time — a decision module: the
+ * action itself is handed in (a delete, or since 0.3.0 an update), so the suite
+ * can drive the order, a failure halfway and a Stop without a platform.
  *
  * **Sequential on purpose.** One request in flight means a Stop takes effect
  * at the next record rather than after a burst already sent, a failure names
@@ -21,7 +21,8 @@ export interface BulkFailure extends BulkItem {
 }
 
 export interface BulkResult {
-    deleted: BulkItem[];
+    /** The records the action succeeded on. */
+    done: BulkItem[];
     failed: BulkFailure[];
     /** True when a Stop or a teardown ended the run with records left. */
     stopped: boolean;
@@ -39,16 +40,16 @@ export interface BulkOptions {
 }
 
 /**
- * Run `remove` over `items` in order. **Never rejects**: every failure is a
+ * Run `act` over `items` in order. **Never rejects**: every failure is a
  * row in the result, because the caller's job afterwards — refresh once, say
  * what happened — is the same whichever records failed.
  */
 export function runSequential(
     items: BulkItem[],
-    remove: (id: string) => Promise<unknown>,
+    act: (id: string) => Promise<unknown>,
     options: BulkOptions,
 ): Promise<BulkResult> {
-    const result: BulkResult = { deleted: [], failed: [], stopped: false, remaining: 0 };
+    const result: BulkResult = { done: [], failed: [], stopped: false, remaining: 0 };
 
     const step = (index: number): Promise<BulkResult> => {
         if (index >= items.length) {
@@ -67,9 +68,9 @@ export function runSequential(
         let attempt: Promise<unknown>;
 
         try {
-            attempt = Promise.resolve(remove(item.id));
+            attempt = Promise.resolve(act(item.id));
         } catch (error) {
-            // A remove that throws synchronously is a failure of this record,
+            // An action that throws synchronously is a failure of this record,
             // not of the run.
             attempt = Promise.reject(error);
         }
@@ -77,7 +78,7 @@ export function runSequential(
         return attempt
             .then(
                 () => {
-                    result.deleted.push(item);
+                    result.done.push(item);
                 },
                 (error: unknown) => {
                     result.failed.push({ ...item, detail: options.describe(error) });

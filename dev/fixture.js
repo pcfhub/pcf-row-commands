@@ -52,6 +52,49 @@
         title: 'Active Accounts',
 
         /*
+         * What `utils.getEntityMetadata` answers for the choices, in the shapes
+         * measured on a form: Status with `DefaultStatus` per state and Status
+         * Reason with the `State` each reason belongs to (account, 2026-10-08,
+         * SPEC.md P5). A `statecode` is the integer here and reads back from
+         * `getValue` as the string "0", as the platform hands it over (P4).
+         */
+        metadata: {
+            statecode: {
+                shape: 'descriptor',
+                options: [
+                    { value: 0, label: 'Active', defaultStatus: 1 },
+                    { value: 1, label: 'Inactive', defaultStatus: 2 },
+                ],
+            },
+            statuscode: {
+                shape: 'descriptor',
+                options: [
+                    { value: 1, label: 'Active', state: 0 },
+                    { value: 2, label: 'Inactive', state: 1 },
+                ],
+            },
+            industrycode: {
+                shape: 'map',
+                options: [
+                    { value: 1, label: 'Accounting' },
+                    { value: 2, label: 'Manufacturing' },
+                    { value: 3, label: 'Logistics' },
+                ],
+            },
+        },
+
+        /*
+         * Columns the table has and the view does not: what `addColumn` can
+         * bring in on the next fetch. A maker's set-column command names any
+         * column of the table, and the control asks for the ones it needs.
+         */
+        catalogue: {
+            industrycode: { name: 'industrycode', displayName: 'Industry', dataType: 'OptionSet', alias: 'industrycode', order: 90, visualSizeFactor: 100 },
+            creditonhold: { name: 'creditonhold', displayName: 'Credit Hold', dataType: 'TwoOptions', alias: 'creditonhold', order: 91, visualSizeFactor: 100 },
+            statecode: { name: 'statecode', displayName: 'Status', dataType: 'OptionSet', alias: 'statecode', order: 92, visualSizeFactor: 90 },
+        },
+
+        /*
          * `order` is not the array order, on purpose: a view's columns arrive
          * in whatever order the platform hands them over and carry their
          * intended position in `order`. A control that renders them as supplied
@@ -131,14 +174,14 @@
         ],
 
         records: [
-            { id: 'a01', values: { name: 'Fabrikam Manufacturing', accountnumber: 'ACC-1042', primarycontactname: 'Dana Whitfield', statecode: 'Active', ownerid: 'Sam Vaziri', websiteurl: 'https://fabrikam.example.com' } },
-            { id: 'a02', values: { name: 'Contoso Logistics', accountnumber: 'ACC-1087', primarycontactname: 'Ravi Menon', statecode: 'Active', ownerid: 'Sam Vaziri', websiteurl: 'http://contoso.example.com/logistics' } },
-            { id: 'a03', values: { name: 'Northwind Traders', accountnumber: 'ACC-1103', primarycontactname: 'Erin Boyle', statecode: 'Active', ownerid: 'Jo Park', websiteurl: 'https://northwind.example.com/traders?ref=view' } },
-            { id: 'a04', values: { name: 'Adventure Works Cycles', accountnumber: 'ACC-1155', primarycontactname: 'Marcus Feld', statecode: 'Active', ownerid: 'Jo Park', websiteurl: '' } },
-            { id: 'a05', values: { name: 'Litware Consulting', accountnumber: 'ACC-1178', primarycontactname: 'Priya Raman', statecode: 'Inactive', ownerid: 'Jo Park', websiteurl: null } },
-            { id: 'a06', values: { name: 'Tailspin Toys', accountnumber: 'ACC-1201', primarycontactname: 'Owen Brackett', statecode: 'Active', ownerid: 'Sam Vaziri', websiteurl: 'javascript:alert(document.cookie)' } },
-            { id: 'a07', values: { name: 'Proseware Systems', accountnumber: 'ACC-1233', primarycontactname: 'Alice Nakamura', statecode: 'Active', ownerid: 'Jo Park', websiteurl: '/main.aspx?etn=account&pagetype=entityrecord' } },
-            { id: 'a08', values: { name: 'Wingtip Analytics', accountnumber: 'ACC-1260', primarycontactname: 'Tomas Ehrlich', statecode: 'Active', ownerid: 'Sam Vaziri', websiteurl: 'HTTPS://Wingtip.Example.com/Analytics' } },
+            { id: 'a01', values: { industrycode: 2, name: 'Fabrikam Manufacturing', accountnumber: 'ACC-1042', primarycontactname: 'Dana Whitfield', statecode: 0, ownerid: 'Sam Vaziri', websiteurl: 'https://fabrikam.example.com' } },
+            { id: 'a02', values: { industrycode: 3, creditonhold: true, name: 'Contoso Logistics', accountnumber: 'ACC-1087', primarycontactname: 'Ravi Menon', statecode: 0, ownerid: 'Sam Vaziri', websiteurl: 'http://contoso.example.com/logistics' } },
+            { id: 'a03', values: { name: 'Northwind Traders', accountnumber: 'ACC-1103', primarycontactname: 'Erin Boyle', statecode: 0, ownerid: 'Jo Park', websiteurl: 'https://northwind.example.com/traders?ref=view' } },
+            { id: 'a04', values: { name: 'Adventure Works Cycles', accountnumber: 'ACC-1155', primarycontactname: 'Marcus Feld', statecode: 0, ownerid: 'Jo Park', websiteurl: '' } },
+            { id: 'a05', values: { name: 'Litware Consulting', accountnumber: 'ACC-1178', primarycontactname: 'Priya Raman', statecode: 1, ownerid: 'Jo Park', websiteurl: null } },
+            { id: 'a06', values: { name: 'Tailspin Toys', accountnumber: 'ACC-1201', primarycontactname: 'Owen Brackett', statecode: 0, ownerid: 'Sam Vaziri', websiteurl: 'javascript:alert(document.cookie)' } },
+            { id: 'a07', values: { name: 'Proseware Systems', accountnumber: 'ACC-1233', primarycontactname: 'Alice Nakamura', statecode: 0, ownerid: 'Jo Park', websiteurl: '/main.aspx?etn=account&pagetype=entityrecord' } },
+            { id: 'a08', values: { name: 'Wingtip Analytics', accountnumber: 'ACC-1260', primarycontactname: 'Tomas Ehrlich', statecode: 0, ownerid: 'Sam Vaziri', websiteurl: 'HTTPS://Wingtip.Example.com/Analytics' } },
 
             // The edges start here.
 
@@ -149,15 +192,15 @@
             // anybody sees is a run of blank rows with working commands beside
             // them. The primary column is the row's identity and an empty one
             // has to say so.
-            { id: 'a09', values: { name: '', accountnumber: null, primarycontactname: '', statecode: 'Active', ownerid: 'Jo Park', websiteurl: '  https://blueyonder.example.com  ' } },
+            { id: 'a09', values: { name: '', accountnumber: null, primarycontactname: '', statecode: 0, ownerid: 'Jo Park', websiteurl: '  https://blueyonder.example.com  ' } },
 
             // Long enough to overflow whatever width `visualSizeFactor` bought.
-            { id: 'a10', values: { name: 'Consolidated Messenger Intercontinental Freight and Warehousing', accountnumber: 'ACC-1288', primarycontactname: 'Margarethe Kowalczyk-Fitzgerald', statecode: 'Active', ownerid: 'Sam Vaziri', websiteurl: 'data:text/html,<script>alert(1)</script>' } },
+            { id: 'a10', values: { name: 'Consolidated Messenger Intercontinental Freight and Warehousing', accountnumber: 'ACC-1288', primarycontactname: 'Margarethe Kowalczyk-Fitzgerald', statecode: 0, ownerid: 'Sam Vaziri', websiteurl: 'data:text/html,<script>alert(1)</script>' } },
 
             // Leading punctuation and a lowercase start: the two that show a
             // sort comparing raw strings rather than formatted values.
-            { id: 'a11', values: { name: '(pending) Woodgrove Bank', accountnumber: 'ACC-0007', primarycontactname: 'Ines Duarte', statecode: 'Inactive', ownerid: 'Jo Park', websiteurl: 'https://woodgrove.example.com' } },
-            { id: 'a12', values: { name: 'école Numérique', accountnumber: 'ACC-1310', primarycontactname: 'LucRousseau', statecode: 'Active', ownerid: 'Sam Vaziri', websiteurl: 'ftp://files.example.com/ecole' } },
+            { id: 'a11', values: { name: '(pending) Woodgrove Bank', accountnumber: 'ACC-0007', primarycontactname: 'Ines Duarte', statecode: 1, ownerid: 'Jo Park', websiteurl: 'https://woodgrove.example.com' } },
+            { id: 'a12', values: { name: 'école Numérique', accountnumber: 'ACC-1310', primarycontactname: 'LucRousseau', statecode: 0, ownerid: 'Sam Vaziri', websiteurl: 'ftp://files.example.com/ecole' } },
         ],
     };
 });

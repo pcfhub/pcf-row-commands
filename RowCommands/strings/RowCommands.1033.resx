@@ -125,6 +125,96 @@
   <data name="OnRowCommand_Desc" xml:space="preserve">
     <value>Raised when a command you defined is pressed. A form script binds it with addEventHandler on this subgrid.</value>
   </data>
+  <data name="Commands_Name" xml:space="preserve">
+    <value>Your commands</value>
+  </data>
+  <data name="Commands_Desc" xml:space="preserve">
+    <value>Commands of your own, as JSON or the name of a web resource holding it. Each sets columns on the row, or reports a press for a form script or a formula.</value>
+  </data>
+  <data name="ShowStateCommands_Name" xml:space="preserve">
+    <value>Show Activate and Deactivate</value>
+  </data>
+  <data name="ShowStateCommands_Desc" xml:space="preserve">
+    <value>Activate or Deactivate on each row, and both over a selection. Only for a table whose Status is Active and Inactive.</value>
+  </data>
+  <data name="RowCommands_Activate" xml:space="preserve">
+    <value>Activate</value>
+  </data>
+  <data name="RowCommands_Deactivate" xml:space="preserve">
+    <value>Deactivate</value>
+  </data>
+  <data name="RowCommands_ActivateRecord" xml:space="preserve">
+    <value>Activate {0}</value>
+  </data>
+  <data name="RowCommands_DeactivateRecord" xml:space="preserve">
+    <value>Deactivate {0}</value>
+  </data>
+  <data name="RowCommands_Activated" xml:space="preserve">
+    <value>{0} was activated.</value>
+  </data>
+  <data name="RowCommands_Deactivated" xml:space="preserve">
+    <value>{0} was deactivated.</value>
+  </data>
+  <data name="RowCommands_StateFailed" xml:space="preserve">
+    <value>{0} could not be changed.</value>
+  </data>
+  <data name="RowCommands_CommandRecord" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="RowCommands_CommandDone" xml:space="preserve">
+    <value>{0}: {1} was updated.</value>
+  </data>
+  <data name="RowCommands_CommandFailed" xml:space="preserve">
+    <value>{0}: {1} could not be updated.</value>
+  </data>
+  <data name="RowCommands_CommandConfirm" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="RowCommands_ActivateSelected" xml:space="preserve">
+    <value>Activate selected</value>
+  </data>
+  <data name="RowCommands_DeactivateSelected" xml:space="preserve">
+    <value>Deactivate selected</value>
+  </data>
+  <data name="RowCommands_UpdateSelectedText" xml:space="preserve">
+    <value>{0} will be applied to {1} records.</value>
+  </data>
+  <data name="RowCommands_UpdatingProgress" xml:space="preserve">
+    <value>Updating {0} of {1}…</value>
+  </data>
+  <data name="RowCommands_UpdatedMany" xml:space="preserve">
+    <value>{0} records were updated.</value>
+  </data>
+  <data name="RowCommands_UpdatedSome" xml:space="preserve">
+    <value>{0} of {1} updated; {2} failed.</value>
+  </data>
+  <data name="RowCommands_UpdateStopped" xml:space="preserve">
+    <value>Stopped after {0} of {1}.</value>
+  </data>
+  <data name="RowCommands_UpdateCancelled" xml:space="preserve">
+    <value>Nothing was changed.</value>
+  </data>
+  <data name="RowCommands_UpdateSelectedFailed" xml:space="preserve">
+    <value>Some records could not be updated.</value>
+  </data>
+  <data name="RowCommands_NothingToUpdate" xml:space="preserve">
+    <value>The selected records already have this value.</value>
+  </data>
+  <data name="RowCommands_ConfigNotFound" xml:space="preserve">
+    <value>Your commands: the web resource {0} was not found. Check the name, and that it is published.</value>
+  </data>
+  <data name="RowCommands_ConfigDenied" xml:space="preserve">
+    <value>Your commands: the web resource {0} could not be read ({1}).</value>
+  </data>
+  <data name="RowCommands_ConfigOffline" xml:space="preserve">
+    <value>Your commands could not be loaded: the network is unavailable.</value>
+  </data>
+  <data name="RowCommands_ConfigInvalid" xml:space="preserve">
+    <value>Your commands could not be read: {0}.</value>
+  </data>
+  <data name="RowCommands_ConfigNoHost" xml:space="preserve">
+    <value>Your commands: a web resource can only be read in a model-driven app. In a canvas app, put the JSON in the property itself.</value>
+  </data>
   <data name="RowCommands_Loading" xml:space="preserve">
     <value>Loading records…</value>
   </data>
