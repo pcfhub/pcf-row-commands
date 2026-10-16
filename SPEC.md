@@ -700,7 +700,29 @@ from `cll_/rowcommands.json`, which gains one account-bound action command:
 | W6 | Tick all five rows, **Echo** in the bar | One confirmation naming 5, the progress line, five calls in page order, "Ran on 5 records."; `echoSelected` with the five ids | **Passed on 0.4.1, 2026-10-16.** The header box ticked all five; the bar offered Delete selected, **Echo** and Clear selection (Notify, Share and Misspelt are not marked for the selection). The platform's confirmation: "Echo will run on 5 records."; then "Ran on 5 records." and `echoSelected` with the five ids in page order, `invokeCount` 1. Stop was not pressed — five calls take under a second (P6) — and is asserted in `bulk.ts`'s suite only. |
 | W7 | The main grid: the account-bound command on a row | Drawn on the main grid (unlike a press-only command) and runs | **Passed on 0.4.1, 2026-10-16.** *My Active Accounts*: the first row offered Open, Deactivate, Accounting and **Echo** — not the press-only Escalate. Echo posted `accounts(<id>)/Microsoft.Dynamics.CRM.pcfhub_ProbeRowBoundAccount`, **200 in 370 ms**, and said "Echo ran on this record." — the row has no name, so the 0.2.2 placeholder. |
 
+**Left on the test environment:** nothing from 0.4.x. The subgrid reads its
+earlier inline command again, `cll_/rowcommands.json` has its two earlier
+commands, and the walkthrough web resource and the probe's three Custom APIs
+were deleted (a `customapis` query for `pcfhub_ProbeRow…` answered 0).
+
 ## Not verified
+
+- **0.4.x: a plug-in's own refusal.** By the user's choice the probe measured
+  the platform's (`GrantAccess`, P5) rather than register a throwaway plug-in;
+  an `InvalidPluginExecutionException`'s message is expected to arrive the same
+  way, short and whole, and is shown as it came.
+- **0.4.x: a `result` with a value.** The probe's Custom APIs had no plug-in, so
+  every response property was `null`; the result line is asserted in the rig.
+- **0.4.x: a user without the Custom API's execute privilege**, which the
+  administrator cannot reach; the control offers the command and shows the
+  server's refusal.
+- **0.4.x: Stop pressed during an action over a selection on a form** — five
+  calls finish in under a second (P6); asserted in `bulk.ts`'s suite.
+- **0.4.x: an EntityReference parameter constrained to one table** given a
+  row of another; the probe's was unconstrained and took any (P3).
+- **0.4.x: `QualifyLead`** — the test environment has no Lead table; the
+  example in `docs/examples.md` says so.
+- **0.4.x: the phone client** with action commands.
 
 - **0.3.0: `onRowCommand` bound at OnLoad, in a person's browser.** The
   built-in browser could not show the OnLoad script running at all (P1).
@@ -740,9 +762,9 @@ recorded above**. Every other platform answer comes from `dev/host.js`.
   `docs/canvas.md` is wrong about it. Proving it: bind the role in a canvas app.
 - ~~**That the outputs reach a canvas `OnChange`**~~ (measured 2026-10-08: they do, a moment after the press), and that `InvokeCount` makes a
   repeated press fire it. Proving it: two identical presses and a `Notify()`.
-- **That the platform's error dialog shows `details`** as the type
-  documentation describes. A bulk delete with failures puts every failed record
-  there, so W3 with a record that cannot be deleted would show it.
+- ~~**That the platform's error dialog shows `details`**~~ — **it does not**,
+  measured 2026-10-16 (0.4.0's W4): `details` goes only into *Download Log
+  File*. Fixed in 0.4.1 — the reason rides on the message.
 
 **New with 0.2.0:**
 
