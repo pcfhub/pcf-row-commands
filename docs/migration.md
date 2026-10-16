@@ -1,11 +1,28 @@
 ---
 title: Migrating
-description: What an upgrade changes on its own, and what to do about it — 0.3.0 and 0.2.0.
+description: What an upgrade changes on its own, and what to do about it — 0.4.0, 0.3.0 and 0.2.0.
 appliesTo: ">=0.2.0"
 order: 9
 ---
 
 # Migrating
+
+## To 0.4.0
+
+**Nothing changes on its own.** There is no new property and no new
+permission: a command calls an action only when its JSON says `"action"`, and
+the Web API call it makes needs no feature beyond the two 0.2.0 declared.
+
+**Upgrade the control before you add an action to a shared web resource.**
+0.3.x reads your commands' JSON strictly and refuses the whole list at a key it
+does not know, so a form or view still on 0.3.x that reads a web resource
+holding `"action"` shows *unknown key "action"* above the table and draws none
+of your commands. Within one environment the import upgrades every form and
+view at once; across environments, ship the control's solution with — or
+before — the web resource.
+
+**Invoked command** reports an action command's `name` as it reports any of
+your commands', and `<name>Selected` over a selection.
 
 ## To 0.3.0
 

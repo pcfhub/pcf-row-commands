@@ -669,6 +669,37 @@ grid:
 | P5 | `await refuse(0)`; `await gone()` | what the user is shown when the server refuses a well-formed body for a reason of its own: `GrantAccess` to a principal that does not exist, `QualifyLead` on a lead that does not exist, and the bound probe action on an id that is no row (a record deleted while the page showed it). The code, the message, and whether `InnerException :` is in it — the rule for the one sentence the control shows | **Measured, 2026-10-16, Web API from the CLI.** `GrantAccess` to a principal that does not exist → **404 `0x80040217`**, 81 characters, *Entity 'systemuser' With Id = 00000000-0000-0000-0000-0000000000a1 Does Not Exist* — **no *InnerException* in it**: a refusal the platform raises for a reason of its own is short and whole, unlike the payload family (1.5–3.6 KB with the stack). An `AccessMask` that is no value of its enum → **500 `0x0`**, *Requested value 'NoSuchAccess' was not found.* `QualifyLead` could not be asked: this environment has no `lead` table (404 *Resource not found for the segment 'leads'*). **The bound probe action on an id that is no row → 200**, `Echo: null`: a no-plug-in Custom API never looks for its row, so a record deleted while the page showed it is not refused — the refresh after the call is what drops it. The rule for the control: the first sentence after *InnerException :* when it is there, else the message whole; the code goes to the console. |
 | P6 | Tick nothing; `await sequence(5)` | five bound calls one after another, the way a selection would run: each one's time, any throttling, and the platform's selection after the one refresh | **The right way, 2026-10-16, subgrid.** Five bound calls one after another: all 200, 79, 148, 235, 189 and 82 ms, 734 ms in all — nothing throttled. The five rows the probe selected were **still selected after the refresh**, as 0.2.0's P3 found after a ribbon action. A selection can run its calls in sequence with Stop, as updates do. The three Custom APIs are left in place for the 0.4.0 walkthrough and deleted after it. |
 
+## 0.4.0's walkthrough
+
+The 0.4.0 form build over 0.3.4, driven by Claude in the built-in browser on the
+test environment, with the probe's three Custom APIs still in place. The
+subgrid (`Subgrid_new_2`, `cll_account`) reads its commands from a new web
+resource `cll_/rowcommands-actions.json`; the main grid (*My Active Accounts*)
+from `cll_/rowcommands.json`, which gains one account-bound action command:
+
+```json
+{ "commands": [
+  { "name": "echo", "label": "Echo", "icon": "send", "action": "pcfhub_ProbeRowBound", "bound": true,
+    "parameters": { "Text": "row {id}" }, "result": "Echo", "selection": true },
+  { "name": "notify", "label": "Notify", "icon": "flag", "action": "pcfhub_ProbeRowUnbound", "bound": false,
+    "parameters": { "RowId": "{id}", "Target": "{record}" }, "confirm": "Notify about {0}?" },
+  { "name": "share", "label": "Share with nobody", "icon": "warning", "action": "GrantAccess", "bound": false,
+    "parameters": { "Target": "{record}", "PrincipalAccess": { "Principal": { "@odata.type": "Microsoft.Dynamics.CRM.systemuser",
+      "systemuserid": "00000000-0000-0000-0000-0000000000a1" }, "AccessMask": "ReadAccess" } } },
+  { "name": "misspelt", "label": "Misspelt", "icon": "dismiss", "action": "pcfhub_proberowbound", "bound": true }
+] }
+```
+
+| # | Do | Expect | Answer |
+| --- | --- | --- | --- |
+| W1 | Import 0.4.0 over 0.3.4; publish; reload | No new permission asked (no new feature) | |
+| W2 | **Echo** on a row | "Echo ran on <row>." — `Echo` is `null` with no plug-in, so no result is said; the outputs report `echo` and the row; one refresh | |
+| W3 | **Notify** on a row: Cancel, then again and Continue | The confirmation names the row; Cancel posts nothing ("Nothing was changed."); Continue posts the unbound action with the row as a Guid and a typed reference and says it ran (204) | |
+| W4 | **Share with nobody** on a row | The error dialog: "Share with nobody could not run on <row>." with *Entity 'systemuser' With Id = … Does Not Exist* under Details | |
+| W5 | **Misspelt** on a row | The error dialog with the name hint: names are case-sensitive | |
+| W6 | Tick all five rows, **Echo** in the bar | One confirmation naming 5, the progress line, five calls in page order, "Ran on 5 records."; `echoSelected` with the five ids | |
+| W7 | The main grid: the account-bound command on a row | Drawn on the main grid (unlike a press-only command) and runs | |
+
 ## Not verified
 
 - **0.3.0: `onRowCommand` bound at OnLoad, in a person's browser.** The
