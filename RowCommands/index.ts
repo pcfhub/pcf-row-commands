@@ -2253,8 +2253,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
     private refusalText(refusal: Refusal, name: string, getString: (id: string) => string): string {
         console.warn(`[RowCommands] the action ${name} was refused`, refusal.status, refusal.code ?? '', refusal.sentence);
 
+        // The server's not-found sentence has no full stop (measured), and the hint follows it on one line.
         return refusal.nameWrong
-            ? `${refusal.sentence} ${getString('RowCommands_ActionNameHint').replace('{0}', name)}`
+            ? `${refusal.sentence}${/[.!?…]$/.test(refusal.sentence) ? '' : '.'} ${getString('RowCommands_ActionNameHint').replace('{0}', name)}`
             : refusal.sentence;
     }
 

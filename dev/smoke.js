@@ -2658,7 +2658,7 @@ const action = load('action');
 
     check(
         'a name the environment does not have, or spelled another way, is refused with a hint that names are case-sensitive (P2)',
-        errorDialogs(acting).length === 2 && errorDialogs(acting)[1].indexOf("Check the action's name, cll_escalate, and whether it is bound: names are case-sensitive.") !== -1,
+        errorDialogs(acting).length === 2 && errorDialogs(acting)[1].indexOf("Resource not found for the segment 'Microsoft.Dynamics.CRM.cll_escalate'. Check the action's name, cll_escalate, and whether it is bound: names are case-sensitive.") !== -1,
         errorDialogs(acting)[1],
     );
 
