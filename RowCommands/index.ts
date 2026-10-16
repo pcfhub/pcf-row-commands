@@ -3,6 +3,8 @@ import { BulkItem, BulkResult, runSequential } from './bulk';
 import { CommandDef, IconName, columnsWritten, holdsAll, labelFor } from './config';
 import { ConfigLoad, Fetch, loadCommands } from './configLoader';
 import { PRIVILEGE_WRITE, canByRole, canDeleteByRole } from './privileges';
+// THROWAWAY: the 0.3.4 probe for 0.4.0. Delete with probe.ts before 0.4.0.
+import { probe } from './probe';
 import { StateOption, isActiveInactive, readState, stateOptionsFrom, statePayload, targetState } from './state';
 import { pageState, prune, sameSet, toggle, togglePage } from './selection';
 import {
@@ -312,6 +314,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const dataset = context.parameters.records;
 
         this.latest = { context, dataset };
+
+        // THROWAWAY: the 0.3.4 probe for 0.4.0.
+        probe(context, dataset);
 
 
         this.applyTheme(context);
