@@ -630,6 +630,45 @@ Phone, Address 1: City, Primary Contact and the commands — **no "urlField"**;
 the editor's only banner was **getClientUrl** (expanded: one message); no
 Activate or Deactivate drawn. All three fixes hold.
 
+## 0.4.0, measured before it is written
+
+Picked by demand on 2026-10-16: downloads 35 → 49 in seven days, the only
+control on the hub that moved by more than eight, and this page's own
+limitation — *your own commands write columns, or report a press, nothing
+else*. 0.4.0 adds **commands that call a Web API action**: a maker's Custom
+API, bound to the row's table or unbound with the row as a parameter, or a
+platform message. The platform has no route for it: Power Fx commanding lists
+`Environment` as unsupported, and Dataverse actions with parameters are "not
+fully supported" there (Learn, *Using Power Fx with commands*; *Connect to
+Dataverse*, read 2026-10-16).
+
+How the call itself behaves was measured on 2026-10-15 from a field control
+(`pcf-hierarchy-view` 0.2.9, its SPEC.md A1–A4, now the skill's *Calling a Web
+API action*). The 0.3.4 probe build asks what is particular to a command on a
+row. `RowCommands/probe.ts` and `dev/probe-check.js` are throwaway; they, the
+import and the call in `index.ts` go before 0.4.0. Every call below was driven
+against the rig once before packing (`node dev/probe-check.js`).
+
+Three throwaway Custom APIs, no plug-in, created from the console beside the
+probe and deleted after it: `pcfhub_ProbeRowBound` (bound to `cll_account`,
+`Text` in, `Echo` out), `pcfhub_ProbeRowBoundAccount` (the same, bound to
+`account`, for the main grid) and `pcfhub_ProbeRowUnbound` (unbound, `RowId` a
+Guid and `Target` an EntityReference, no response properties).
+
+Import `RowCommands_0.3.4_probe_*.zip` over 0.3.3 as an upgrade, publish,
+hard reload, then from the console on the account form whose `Subgrid_new_2`
+(`cll_account`) carries the control, and once on the *My Active Accounts* main
+grid:
+
+| # | Ask | Rests on it | Answer |
+| --- | --- | --- | --- |
+| P1 | `await __pcfRowCommandsProbe.all()` on the subgrid and the main grid | the organisation URL a dataset control posts to, and how a bound path is spelled for the row's table: `getEntityMetadata(table).EntitySetName` and `PrimaryIdAttribute` against the `EntityDefinitions` fetch | |
+| P2 | `await bound(0, 'hi')`; then `await bound(0, 'hi', 'pcfhub_proberowbound')` | **the feature**: a bound action on a row from a dataset control answers 200 with its response property. The second asks whether the name in the URL is case-sensitive — whether the parser takes a maker's spelling as written or must say so | |
+| P3 | `await unbound(0, 'ok')`, `'refNoType'`, `'refWrongType'`, `'notGuid'` | the `{id}` token as an `Edm.Guid` string, and the `{record}` token: an EntityReference parameter as `{"@odata.type": "Microsoft.Dynamics.CRM.<table>", "<id column>": "<id>"}` — **never measured**. Without `@odata.type`, and with the wrong one, for what a mistake says | |
+| P4 | the `'ok'` answer above | **204 or 200 for an action with no response properties** — how `result` is read when there is nothing to read | |
+| P5 | `await refuse(0)`; `await gone()` | what the user is shown when the server refuses a well-formed body for a reason of its own: `GrantAccess` to a principal that does not exist, `QualifyLead` on a lead that does not exist, and the bound probe action on an id that is no row (a record deleted while the page showed it). The code, the message, and whether `InnerException :` is in it — the rule for the one sentence the control shows | |
+| P6 | Tick nothing; `await sequence(5)` | five bound calls one after another, the way a selection would run: each one's time, any throttling, and the platform's selection after the one refresh | |
+
 ## Not verified
 
 - **0.3.0: `onRowCommand` bound at OnLoad, in a person's browser.** The
