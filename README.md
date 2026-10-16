@@ -1,6 +1,6 @@
 # Row Commands
 
-Open a record, launch a URL, delete it with a confirm, or run commands of your own, from the row itself.
+Open a record, launch a URL, delete it with a confirm, or run commands of your own — including your Custom APIs — from the row itself.
 
 > **Reference example · built with AI.** This control was written with AI (Claude) and tested on a live Dataverse form; its code has not been reviewed line by line. It is published as a worked example and is not maintained — read the source and [`SPEC.md`](SPEC.md) (what was measured on the form) before you use it. Fixes are not guaranteed.
 
@@ -51,6 +51,15 @@ The control also raises a custom `onRowCommand` event, but on a subgrid a form
 script's handler was never called when measured (`SPEC.md`, P1). Activate and
 Deactivate write the state with its default reason in one update, only on a
 table whose Status is exactly Active and Inactive.
+
+**Since 0.4.0, a command can call a Web API action.** A Custom API — bound to
+the row's table, or taking the row as a parameter through `{id}` or
+`{record}` — or a platform message such as `QualifyLead`, posted to the
+organisation's Web API from the browser as the user, then one refresh. The
+platform has no route to it: the command bar's Power Fx cannot call a Dataverse
+action with parameters. What it rests on was measured first (`SPEC.md`,
+*0.4.0, measured before it is written*): the name is case-sensitive, an entity
+reference needs its `@odata.type`, and an action with no response answers 204.
 
 **Delete always asks first, and cannot be configured not to.** The confirmation
 is `navigation.openConfirmDialog`, and a host without it does not get the delete

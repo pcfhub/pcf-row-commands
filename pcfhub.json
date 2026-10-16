@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "pcf-row-commands",
   "name": "Row Commands",
-  "tagline": "Open, launch or delete from the row itself — plus commands of your own, Activate and Deactivate, and selection.",
-  "summary": "Puts commands at the end of every row of a view, with no ribbon customisation: **Open** goes to the record's form, **Open link** follows an address held in a column you map, and **Delete** asks for confirmation first.\n\n- **Your own commands** (new in 0.3.0): buttons you describe in JSON, each setting columns on the row or reporting a press to a form script\n- **Activate and Deactivate** on each row and over a selection (new in 0.3.0)\n- Optional row selection, to act on several rows with one confirmation\n- Delete and writes offered only to users whose roles allow them\n- Resizable columns, remembered per user and view",
+  "tagline": "Open, launch or delete from the row itself — plus commands of your own that write, call your Custom APIs, or report a press.",
+  "summary": "Puts commands at the end of every row of a view, with no ribbon customisation: **Open** goes to the record's form, **Open link** follows an address held in a column you map, and **Delete** asks for confirmation first.\n\n- **Commands that call an action** (new in 0.4.0): a button that calls your Custom API — bound to the row, or taking it as a parameter — or a platform message, then refreshes the view\n- **Your own commands** (new in 0.3.0): buttons you describe in JSON, each setting columns on the row or reporting a press to a form script\n- **Activate and Deactivate** on each row and over a selection (new in 0.3.0)\n- Optional row selection, to act on several rows with one confirmation\n- Delete and writes offered only to users whose roles allow them\n- Resizable columns, remembered per user and view",
   "category": "data",
   "hosts": [
     "canvas",
@@ -42,6 +42,7 @@
     "screenshots": [
       "media/screenshot.png",
       "media/screenshot-commands.png",
+      "media/screenshot-action.png",
       "media/screenshot-resize.png",
       "media/screenshot-delete.png",
       "media/screenshot-mobile.png",
@@ -65,7 +66,8 @@
       "Your own commands are given to the demo as JSON in the Your commands property. On a form that property can also name a web resource holding the JSON, which a form needs once the JSON passes 100 characters, the most the form designer accepts in a property. The demo has no web resources, so a name there says it was not found.",
       "A command that writes, and Activate or Deactivate, writes to the demo's stand-in Dataverse through context.webAPI.updateRecord, as on a form, and the view refreshes to show it. Reset puts the rows back. The demo describes the Industry and Status choices but not their default status reasons, so Activate and Deactivate send the state alone here; on a form the control reads each state's default reason and sends it beside the state.",
       "Escalate reports on the outputs (invokedCommand, invokedRecordId, invokeCount) and raises onRowCommand, both shown in the event log under the demo. On a model-driven form a form script reads the outputs with addOnOutputChange; onRowCommand was not delivered to a form script on a subgrid when measured, so the docs lead with the outputs.",
-      "The demo runs as a subgrid on a contact's form, which is why Escalate shows: a command that only reports a press is left off a main grid, where nothing can hear it. Industry is a column of the demo's view; on a form, the control fetches a column a command writes when the view lacks it, without drawing it."
+      "The demo runs as a subgrid on a contact's form, which is why Escalate shows: a command that only reports a press is left off a main grid, where nothing can hear it. Industry is a column of the demo's view; on a form, the control fetches a column a command writes when the view lacks it, without drawing it.",
+      "A command that calls an action is not in the demo. It posts to the organisation's Web API, and the demo's stand-in Dataverse answers no Web API actions, so the button could only show a refusal. On a model-driven form or main grid it calls the action on the row, then refreshes; docs/api.md has the JSON."
     ],
     "presets": [
       {

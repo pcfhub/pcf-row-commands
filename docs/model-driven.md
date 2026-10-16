@@ -59,10 +59,17 @@ only one short command. The control reads the published copy, on every form
 load: edit, publish, reload the form. A name it cannot find, or JSON it cannot
 read, is said in the line above the table, naming the problem.
 
-A command that **writes** works on a form's subgrid and on a main grid; one that
-only **reports a press** appears on a form's subgrid, where a form script can
-read the outputs, and not on a main grid. See [API reference](api.md) for the
-JSON and the form-script route.
+A command that **writes** or **calls an action** works on a form's subgrid and on
+a main grid; one that only **reports a press** appears on a form's subgrid, where
+a form script can read the outputs, and not on a main grid. See
+[API reference](api.md) for the JSON and the form-script route.
+
+**A command that calls an action** (since 0.4.0) needs the action published in
+the same environment — a Custom API, with its plug-in if it is to do anything,
+or a platform message. Spell its unique name exactly, and say `"bound": true`
+when the Custom API's binding type is *Entity* for this view's table. Nothing
+else is configured: no connection reference, no flow, no extra permission
+prompt on import.
 
 ## Activate and Deactivate
 

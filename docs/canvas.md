@@ -83,8 +83,10 @@ If(
 ## Your own commands in canvas
 
 A canvas app runs the commands that **report a press** — the ones with no
-`set` — and none that write, since canvas has no Web API for the control to
-write through. Put the JSON in **Your commands** itself (a formula has no
+`set` and no `action` — and none that write or call an action, since canvas has
+no Web API for the control to write through. To call an action from a canvas
+app, report the press and call it in `OnChange` with Power Fx's `Environment`
+object. Put the JSON in **Your commands** itself (a formula has no
 length limit, and a canvas app cannot fetch a web resource) and act in
 `OnChange`:
 

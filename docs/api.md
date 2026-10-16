@@ -82,7 +82,11 @@ accepts at most 100 characters in a property.
       "set": { "cr123_approval": 100000001 },
       "confirm": "Approve {0}?", "selection": true },
     { "name": "escalate", "label": { "1033": "Escalate", "1036": "Escalader" },
-      "icon": "flag" }
+      "icon": "flag" },
+    { "name": "notify", "label": "Notify owner", "icon": "send",
+      "action": "cr123_NotifyOwner", "bound": true,
+      "parameters": { "Reason": "Raised from row {id}" },
+      "result": "Message", "confirm": "Notify the owner of {0}?" }
   ]
 }
 ```
@@ -92,19 +96,62 @@ accepts at most 100 characters in a property.
 | `name` | yes | What `Invoked command` reports. Starts with a lower-case letter; letters and digits only. Not `open`, `url`, `delete`, `activate` or `deactivate`, and not ending in `Selected`. |
 | `label` | yes | The button's text: a string, or an object of language codes (LCID) to text — the user's language, then English (1033), then the first one given. Up to 60 characters. |
 | `icon` | no | `run` (the default), `check`, `dismiss`, `flag`, `send`, `star`, `warning` or `archive`. |
-| `set` | no | Columns to write on the row, by logical name, with text, numbers, `true`, `false` or `null`. A choice is its number; a lookup is `"<navigation>@odata.bind": "/accounts(<id>)"`. Without `set`, the command writes nothing and only reports the press. |
-| `confirm` | no | A sentence to confirm with before writing; `{0}` is the row's name. |
+| `set` | no | Columns to write on the row, by logical name, with text, numbers, `true`, `false` or `null`. A choice is its number; a lookup is `"<navigation>@odata.bind": "/accounts(<id>)"`. |
+| `action` | no | Since 0.4.0: a Web API action to call on the row — a Custom API's unique name, or a platform message such as `QualifyLead`. **Spelled exactly**: the name is case-sensitive. Not with `set`. |
+| `bound` | with `action` | `true` when the action is bound to this view's table — it is called on the row, `<set>(<id>)/Microsoft.Dynamics.CRM.<action>` — or `false` for an unbound one, called by name. Required: a guess is a 404. |
+| `parameters` | no | The action's parameters, by unique name, sent as written. In any text, `{id}` becomes the row's id; a value that is exactly `"{record}"` becomes the row itself, as an entity reference. |
+| `result` | no | One of the action's response properties, whose value is said after the call on one row. |
+| `confirm` | no | A sentence to confirm with before writing or calling; `{0}` is the row's name. |
 | `selection` | no | `true` to offer the command in the bar over a selection too. |
 
+Without `set` or `action`, a command writes nothing and only reports the press.
+
 At most six commands. A mistake — an unknown key, a misspelt one, a name used
-twice, `statecode` in `set` — is reported by name in the line above the table,
-and the control's own commands carry on.
+twice, `statecode` in `set`, `action` without `bound`, `{record}` inside other
+text — is reported by name in the line above the table, and the control's own
+commands carry on.
 
 **Where each command appears.** A command that writes needs a model-driven app
 and a user whose roles allow Write on the table; it is left off a row that
-already holds every value it would write. A command that only reports a press
-appears on a form and in a canvas app, where something can hear it, and not on
-a main grid, where nothing can.
+already holds every value it would write. A command that calls an action needs
+a model-driven app and is on every row, a main grid's included — nothing on a
+row says it already ran. A command that only reports a press appears on a form
+and in a canvas app, where something can hear it, and not on a main grid, where
+nothing can.
+
+## Commands that call an action
+
+The call is a `POST` to the organisation's Web API from the browser, as the
+signed-in user, the way the platform's own pages call it — no connection, no
+flow, no premium licence. For a **bound** action the row is the action's
+target; for an **unbound** one, pass the row in `parameters`:
+
+| In `parameters` | Is sent as |
+| --- | --- |
+| `"{id}"` | `"5a3c…e0f1"` — the row's id, as text; also inside longer text, `"/accounts({id})"` |
+| `"{record}"` | `{ "@odata.type": "Microsoft.Dynamics.CRM.account", "accountid": "5a3c…e0f1" }` — the row as an entity reference, for an `EntityReference` parameter |
+
+Anything else is sent as written: numbers, `true`/`false`, `null`, objects and
+arrays. Once the call succeeds the command reports on the outputs (after the
+call, so a form script reacting to them sees what it did), the `result`
+property — if you named one and the action returned it — is shown in the line
+above the table, and the view refreshes once, so whatever the action changed
+shows up.
+
+**When the server refuses.** The error dialog shows the server's own words,
+shortened: for a bad parameter, the sentence that says which (*Cannot convert
+the literal 'x' to the expected type 'Edm.Guid'.*); for a refusal the action
+raises itself — a plug-in's message, or the platform's (*Entity 'systemuser'
+With Id = … Does Not Exist*) — the message as it came. When the action's own
+name is what the server could not find, the dialog adds a reminder to check
+the name and `bound`: a name spelled `cr123_notifyowner` instead of
+`cr123_NotifyOwner` is a different name to the Web API.
+
+**Over a selection** the action is called on each selected row one after
+another, after one confirmation naming how many; **Stop** takes effect at the
+next row; a row the server refuses is named in the error dialog while the rest
+go ahead; the outputs carry `<name>Selected` and only the rows it ran on. The
+`result` is not shown for a selection.
 
 ## Activate and Deactivate
 
@@ -216,6 +263,8 @@ view's widths whatever was stored.
 | `utils.hasEntityPrivilege` | Whether to offer Delete | `<uses-feature name="Utility" required="false" />` |
 | `dataset.setSelectedRecordIds` | Handing the selection to the command bar | no feature needed |
 | `dataset.getViewId` | Which view's widths to read | no feature needed |
+| `utils.getEntityMetadata` | How a row is addressed for an action: the table's entity set and id column | `<uses-feature name="Utility" required="false" />`, already declared |
+| A same-origin `POST` to `/api/data/v9.2/` | Calling an action — `context.webAPI` has no way to | no feature needed; the session is the credential |
 
 `hasEntityPrivilege` is published whether or not `Utility` is declared, and
 throws when it is not — measured on a real form. So it is declared, and a host

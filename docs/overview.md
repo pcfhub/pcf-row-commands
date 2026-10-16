@@ -6,7 +6,8 @@ order: 1
 
 # Row Commands
 
-Open a record, launch a URL, or delete it with a confirm, from the row itself.
+Open a record, launch a URL, delete it with a confirm, or run commands of your
+own — including your Custom APIs — from the row itself.
 
 :::callout{type=warning}
 **Reference example · built with AI.** This control was written with AI (Claude) and tested on a live Dataverse form; its code has not been reviewed line by line. It is published as a worked example and is not maintained — read the source and [SPEC.md](https://github.com/pcfhub/pcf-row-commands/blob/main/SPEC.md) (what was measured on the form) before you use it. Fixes are not guaranteed.
@@ -30,6 +31,23 @@ two checkboxes and one column mapping, and no ribbon customisation anywhere.
 - **Delete** asks for confirmation, then deletes. It is off by default, and it
   is offered only where the host can do both halves — and, since 0.2.0, only to
   a user whose security roles allow deleting from the table at all.
+
+## New in 0.4.0
+
+- **Commands that call an action.** A command of your own can now call a
+  Web API action on the row — your Custom API, bound to the table or taking the
+  row as a parameter, or one of the platform's messages such as
+  `QualifyLead` — with no flow, no connection and no ribbon. Name the action
+  and its parameters in the command's JSON; `{id}` and `{record}` put the row
+  in. After the call the view refreshes, and the response property you name is
+  said in the line above the table. Over a selection it runs on each ticked row
+  in turn, with a Stop.
+- **The platform has no other route to this.** The command bar's Power Fx
+  cannot call a Dataverse action that takes parameters, and it has no button on
+  the row. See [API reference](api.md#commands-that-call-an-action).
+
+Nothing changes on an upgrade: a command calls an action only if its JSON says
+`"action"`.
 
 ## New in 0.3.0
 

@@ -47,13 +47,35 @@ Each of these is a constraint that was chosen, not a defect waiting on a fix.
   a record somebody else deleted — is named in the error dialog while the rest
   go ahead. It is slower than a batch past a few dozen rows, and deliberately so.
 
-- **Your own commands write columns, or report a press — nothing else.** A
-  command sets the columns its JSON names, in one update on the row; it does
-  not run a flow, call a custom API or open a page. To do any of those, give
-  the command no `set` and act on its press from a form script (model-driven)
-  or a formula (canvas), or let a flow trigger on the column the command
-  writes. Status and Status Reason cannot be set by a command: use **Show
-  Activate and Deactivate**, which sends the pair together.
+- **Your own commands write columns, call an action, or report a press.** A
+  command does one of the three. It does not run a flow or open a page: call a
+  Custom API whose plug-in starts the flow, or act on the press from a form
+  script (model-driven) or a formula (canvas). Status and Status Reason cannot
+  be set by a command: use **Show Activate and Deactivate**, which sends the
+  pair together.
+
+- **An action runs as the user, from the browser, with nothing around it.**
+  It is the same call the platform's own pages make, so the user's roles apply
+  and whatever the action changes is its plug-in's doing. Over a selection
+  each row is its own call: there is no transaction across them, and a row
+  that fails does not undo the rows before it.
+
+- **A successful call is not proof anything changed.** A Custom API with no
+  plug-in answers success and does nothing; so does one called on a row
+  somebody deleted a moment earlier (measured). The view refreshes after every
+  call, so what the action really did is what the rows then show.
+
+- **An action's answer is shown only through `result`**, and only on a
+  single row: one response property, as text. Anything else the action
+  returns is not read.
+
+- **The action's name is case-sensitive, and `bound` is not guessed.** Both
+  are sent as written; a mismatch is a refusal from the server, shown with a
+  reminder to check them.
+
+- **Nothing asks first whether the user may run the action.** A Custom API's
+  execute privilege is not something a control can read, so the button is
+  offered and the server's refusal is shown.
 
 - **A form script hears your commands through the outputs, not the event.**
   The control raises `onRowCommand`, but on a model-driven subgrid, when
@@ -67,9 +89,11 @@ Each of these is a constraint that was chosen, not a defect waiting on a fix.
   is no form there and no script to listen, so the button would do nothing.
   Commands that write work on a main grid as anywhere else.
 
-- **Commands that write, and Activate/Deactivate, are model-driven only.**
-  Like Delete, they need `context.webAPI`, which a canvas app does not have. A
-  canvas app gets the commands that only report a press, for `OnChange`.
+- **Commands that write or call an action, and Activate/Deactivate, are
+  model-driven only.** Like Delete, they need the organisation's Web API, which
+  a canvas app does not give a control. A canvas app gets the commands that
+  only report a press, for `OnChange` — where Power Fx can call the action
+  itself, through the `Environment` object.
 
 - **In the form designer, the JSON fits only if it is short.** The modern form
   designer accepts at most 100 characters in a property, which is about one

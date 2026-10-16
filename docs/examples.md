@@ -134,6 +134,54 @@ function onLoad(executionContext) {
 }
 ```
 
+## Run your own Custom API on the row
+
+Since 0.4.0 a command can call a Web API action. Say you have a Custom API
+`cr123_EscalateCase`, bound to the Case table, taking a `Reason` (String) and
+returning a `Ticket` (String) — with a plug-in that does the escalating:
+
+```json
+{
+  "commands": [
+    { "name": "escalate", "label": "Escalate", "icon": "flag",
+      "action": "cr123_EscalateCase", "bound": true,
+      "parameters": { "Reason": "Escalated from the grid" },
+      "result": "Ticket", "confirm": "Escalate {0}?", "selection": true }
+  ]
+}
+```
+
+**Escalate** on a row asks, calls the action on that case, says
+*Escalate ran on <case>: <ticket>*, and refreshes the view. Over a selection it
+calls it on each case in turn. If the plug-in refuses — *This case is already
+escalated.* — that sentence is what the user sees.
+
+An **unbound** Custom API that takes the case as a parameter instead is the
+same command with `"bound": false` and the row passed in: `"parameters":
+{ "Case": "{record}" }` for an EntityReference parameter, or `{ "CaseId":
+"{id}" }` for a Guid or a String.
+
+## A platform message: qualify a lead
+
+The platform's own actions are called the same way. `QualifyLead` is bound to
+the Lead table, so on a view of leads:
+
+```json
+{
+  "commands": [
+    { "name": "qualify", "label": "Qualify", "icon": "check",
+      "action": "QualifyLead", "bound": true,
+      "parameters": { "CreateAccount": true, "CreateContact": true,
+                      "CreateOpportunity": false, "Status": 3 },
+      "confirm": "Qualify {0}?" }
+  ]
+}
+```
+
+The parameters are the message's own, as the Web API reference names them.
+Not run on this control's test environment, which has no Lead table; the call
+is the one the reference documents.
+
 ## Deactivating old accounts in bulk
 
 **Show Activate and Deactivate** and **Show row selection** on, on a view of
