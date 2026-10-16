@@ -159,3 +159,12 @@ Each of these is a constraint that was chosen, not a defect waiting on a fix.
   rows instead.
 
 - **Not supported on Power Pages.**
+
+- **The error dialog shows the reason in its message, and at most three.**
+  The platform's error dialog draws only its message: *Show Details* reveals an
+  error code and a session id, and anything more goes into the file its
+  *Download Log File* saves (measured, and as Learn describes). So since 0.4.0
+  the server's reason is added to the message — shortened to the sentence a
+  person can act on, and for a selection the first three rows' — and the whole
+  of it is in the log file. Before 0.4.0 the dialog said only *could not be
+  deleted* or *could not be updated*, and the reason was in the file alone.

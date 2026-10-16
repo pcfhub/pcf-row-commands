@@ -1,5 +1,5 @@
 import { IInputs, IOutputs } from './generated/ManifestTypes';
-import { ActionFetch, Refusal, RowKeys, callAction } from './action';
+import { ActionFetch, Refusal, RowKeys, callAction, readableReason } from './action';
 import { BulkItem, BulkResult, runSequential } from './bulk';
 import { CommandDef, IconName, columnsWritten, holdsAll, labelFor } from './config';
 import { ConfigLoad, Fetch, loadCommands } from './configLoader';
@@ -1500,11 +1500,17 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const deleted = String(result.done.length);
 
         if (result.failed.length > 0) {
+            const reasons = result.failed.map((item) => `${item.label}: ${item.detail}`).join('\n');
+            const shown = result.failed.map((item) => `${item.label}: ${readableReason(item.detail)}`).join('\n');
+
             this.announce(
-                getString('RowCommands_DeletedSome')
-                    .replace('{0}', deleted)
-                    .replace('{1}', String(total))
-                    .replace('{2}', String(result.failed.length)),
+                withReason(
+                    getString('RowCommands_DeletedSome')
+                        .replace('{0}', deleted)
+                        .replace('{1}', String(total))
+                        .replace('{2}', String(result.failed.length)),
+                    shown,
+                ),
                 'error',
             );
 
@@ -1513,8 +1519,8 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             if (typeof navigation?.openErrorDialog === 'function') {
                 void navigation
                     .openErrorDialog({
-                        message: getString('RowCommands_DeleteSelectedFailed'),
-                        details: result.failed.map((item) => `${item.label}: ${item.detail}`).join('\n'),
+                        message: withReason(getString('RowCommands_DeleteSelectedFailed'), shown),
+                        details: reasons,
                     })
                     .catch(() => undefined);
             }
@@ -2308,13 +2314,15 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * Details. The dialog's own refusal is swallowed — the line above has
      * already said what happened.
      */
-    private refused(context: ComponentFramework.Context<IInputs>, message: string, detail: string): void {
-        this.announce(message, 'error');
+    private refused(context: ComponentFramework.Context<IInputs>, message: string, detail: string, shown = readableReason(detail)): void {
+        const said = withReason(message, shown);
+
+        this.announce(said, 'error');
 
         const navigation = context.navigation;
 
         if (typeof navigation?.openErrorDialog === 'function') {
-            void navigation.openErrorDialog({ message, details: detail }).catch(() => undefined);
+            void navigation.openErrorDialog({ message: said, details: detail }).catch(() => undefined);
         }
     }
 
@@ -2508,6 +2516,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                 context,
                 getString(ran ? 'RowCommands_RanSome' : 'RowCommands_UpdatedSome').replace('{0}', done).replace('{1}', String(total)).replace('{2}', String(result.failed.length)),
                 result.failed.map((item) => `${item.label}: ${item.detail}`).join('\n'),
+                result.failed.map((item) => `${item.label}: ${readableReason(item.detail)}`).join('\n'),
             );
 
             return;
@@ -2821,7 +2830,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
                 const detail = describeError(error);
 
-                this.announce(getString('RowCommands_DeleteFailed').replace('{0}', label), 'error');
+                this.announce(withReason(getString('RowCommands_DeleteFailed').replace('{0}', label), readableReason(detail)), 'error');
 
                 const openErrorDialog = navigation.openErrorDialog;
 
@@ -2838,7 +2847,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                  */
                 void openErrorDialog
                     .call(navigation, {
-                        message: getString('RowCommands_DeleteFailed').replace('{0}', label),
+                        message: withReason(getString('RowCommands_DeleteFailed').replace('{0}', label), readableReason(detail)),
                         details: detail,
                     })
                     .catch(() => undefined);
@@ -3198,6 +3207,28 @@ function viewIdOf(dataset: DataSet): string | null {
  * `[object Object]` where the platform's explanation belongs. The device APIs
  * use `code` rather than `errorCode`, which is why both are read here.
  */
+/**
+ * What a refusal says where a person can read it: the control's sentence, then
+ * the server's reason — up to three of a selection's, one per row.
+ *
+ * **The platform's error dialog shows `message` and nothing else.** Measured on
+ * the form 2026-10-16 (SPEC.md W4): *Show Details* reveals an error code, a
+ * session id and the time, and `details` goes only into the file *Download
+ * Log File* saves — which Learn's `openErrorDialog` page says too. Until 0.4.0
+ * every reason this control was given went there, and the dialog said only
+ * *could not be deleted*. A line break collapses to a space in the dialog, so
+ * the reasons are joined on one line; `details` keeps the whole of it.
+ */
+function withReason(message: string, detail: string): string {
+    const lines = detail.split('\n').map((line) => line.trim()).filter((line) => line !== '');
+
+    if (lines.length === 0) {
+        return message;
+    }
+
+    return `${message} ${lines.slice(0, 3).join(' · ')}${lines.length > 3 ? ' …' : ''}`;
+}
+
 function describeError(error: unknown): string {
     if (typeof error === 'string') {
         return error;

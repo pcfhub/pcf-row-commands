@@ -107,8 +107,9 @@ their reach. See [Limitations](limitations.md).
 With **Show row selection** on, tick the rows and press **Delete selected**. One
 confirmation names the count; then the records are deleted one after another,
 with the progress above the table and a **Stop** that takes effect at the next
-record. The view refreshes once at the end. If any fail, the error dialog lists
-each by name with the server's reason, and they stay ticked for a second try.
+record. The view refreshes once at the end. If any fail, the error dialog names
+the first three with the server's reason — all of them in its *Download Log
+File* — and they stay ticked for a second try.
 
 ::image{src=media/screenshot.png alt="Two rows ticked, the bar reading 2 selected with Delete selected and Clear selection" zoom}
 

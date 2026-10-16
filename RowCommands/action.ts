@@ -135,6 +135,25 @@ export function readRefusal(status: number, text: string, action: ActionDef): Re
         message = '';
     }
 
+    const sentence = readableReason(message);
+
+    return {
+        status,
+        code,
+        sentence: sentence !== '' ? sentence : `HTTP ${status}`,
+        nameWrong: status === 404 && code === '0x80060888' && message.includes(`'${action.bound ? 'Microsoft.Dynamics.CRM.' : ''}${action.name}'`),
+    };
+}
+
+/**
+ * A server's message as a person can read it: after *InnerException :* when
+ * it is there — the payload family, 1.5–3.6 KB with the stack (P3) — the
+ * exception's own words without its type name, `--->` chain or stack; else
+ * the message as it came, which the platform's own refusals already are (P5).
+ * At most 300 characters, cut at a sentence. Used for every reason the control
+ * shows, a `webAPI` write's included, not only an action's.
+ */
+export function readableReason(message: string): string {
     const at = message.indexOf(INNER);
     let sentence = at === -1 ? message : message.slice(at + INNER.length);
 
@@ -146,12 +165,7 @@ export function readRefusal(status: number, text: string, action: ActionDef): Re
         sentence = cut > 0 ? sentence.slice(0, cut + 1) : `${sentence.slice(0, 299)}…`;
     }
 
-    return {
-        status,
-        code,
-        sentence: sentence !== '' ? sentence : `HTTP ${status}`,
-        nameWrong: status === 404 && code === '0x80060888' && message.includes(`'${action.bound ? 'Microsoft.Dynamics.CRM.' : ''}${action.name}'`),
-    };
+    return sentence;
 }
 
 /** The response property a command names, as text — or `null` when it names none, or the answer carries nothing (a 204, P4). */

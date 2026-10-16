@@ -138,8 +138,10 @@ property — if you named one and the action returned it — is shown in the lin
 above the table, and the view refreshes once, so whatever the action changed
 shows up.
 
-**When the server refuses.** The error dialog shows the server's own words,
-shortened: for a bad parameter, the sentence that says which (*Cannot convert
+**When the server refuses.** The error dialog and the line above the table say
+the server's own words, shortened — in the dialog's message, because the
+platform's dialog shows nothing else; the full text goes into its *Download
+Log File*: for a bad parameter, the sentence that says which (*Cannot convert
 the literal 'x' to the expected type 'Edm.Guid'.*); for a refusal the action
 raises itself — a plug-in's message, or the platform's (*Entity 'systemuser'
 With Id = … Does Not Exist*) — the message as it came. When the action's own

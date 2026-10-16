@@ -1737,8 +1737,9 @@ const action = load('action');
     const dialog = callsLike(failing, 'navigation.openErrorDialog')[0];
 
     check(
-        'saying which record it was, in the control’s own words',
-        dialog.indexOf('"message":"Fabrikam Manufacturing could not be deleted."') !== -1,
+        // The dialog shows `message` only — `details` goes to its log file (SPEC.md W4) — so the reason rides on the message.
+        'saying which record it was, in the control’s own words, with the reason where the dialog shows it',
+        dialog.indexOf('"message":"Fabrikam Manufacturing could not be deleted. The record could not be deleted."') !== -1,
         dialog,
     );
 
@@ -2022,8 +2023,8 @@ const action = load('action');
 
         check(
             'when records fail, the summary says how many, and the error dialog names each one',
-            refusing.find('.RowCommands-status').textContent === '0 of 2 deleted; 2 failed.'
-                && dialog.includes('Fabrikam Manufacturing: ') && dialog.includes('Contoso Logistics: ')
+            refusing.find('.RowCommands-status').textContent === '0 of 2 deleted; 2 failed. Fabrikam Manufacturing: The record could not be deleted. · Contoso Logistics: The record could not be deleted.'
+                && /"message":"[^"]*Fabrikam Manufacturing: [^"]*Contoso Logistics: /.test(dialog)
                 && !dialog.includes('[object Object]') && !dialog.includes('undefined'),
             `${refusing.find('.RowCommands-status').textContent} | ${dialog}`,
         );
@@ -2329,10 +2330,12 @@ const action = load('action');
     await ready(refusedWrite);
 
     check(
-        'a refused write reports nothing on the outputs, and says why in the platform’s error dialog',
+        'a refused write reports nothing on the outputs, and says why in the server’s own words — not its stack',
         refusedWrite.outputs().invokeCount === 0
             && callsLike(refusedWrite, 'navigation.openErrorDialog').length === 1
-            && refusedWrite.find('.RowCommands-status').textContent === 'Approve: Fabrikam Manufacturing could not be updated.',
+            && refusedWrite.find('.RowCommands-status').textContent.indexOf("Approve: Fabrikam Manufacturing could not be updated. An undeclared property 'cll_PrimaryContact'") === 0
+            && refusedWrite.find('.RowCommands-status').textContent.indexOf('InnerException') === -1
+            && callsLike(refusedWrite, 'navigation.openErrorDialog')[0].indexOf('"details":"Error identified in Payload') !== -1,
         `${refusedWrite.find('.RowCommands-status').textContent} | ${callsLike(refusedWrite, 'navigation.openErrorDialog').join()}`,
     );
 
@@ -2645,8 +2648,8 @@ const action = load('action');
     check(
         'a refusal reports nothing, and says the server’s own words in the error dialog',
         acting.outputs().invokeCount === countBefore
-            && statusOf(acting) === 'Escalate could not run on Contoso Logistics.'
-            && errorDialogs(acting).length === 1 && errorDialogs(acting)[0].indexOf('The account is on credit hold.') !== -1,
+            && statusOf(acting) === 'Escalate could not run on Contoso Logistics. The account is on credit hold.'
+            && errorDialogs(acting).length === 1 && errorDialogs(acting)[0].indexOf('"message":"Escalate could not run on Contoso Logistics. The account is on credit hold."') !== -1,
         `${statusOf(acting)} | ${errorDialogs(acting).join()}`,
     );
 
@@ -2751,8 +2754,8 @@ const action = load('action');
     check(
         'and the outputs carry only the rows it ran on; the refusal is named in the dialog, by row',
         actSelect.outputs().invokedCommand === 'escalateSelected' && actSelect.outputs().invokedRecordId === 'a01,a05'
-            && statusOf(actSelect) === 'Ran on 2 of 3; 1 failed.'
-            && errorDialogs(actSelect).some((call) => call.indexOf('Contoso Logistics: The account is on credit hold.') !== -1),
+            && statusOf(actSelect) === 'Ran on 2 of 3; 1 failed. Contoso Logistics: The account is on credit hold.'
+            && errorDialogs(actSelect).some((call) => call.indexOf('"message":"Ran on 2 of 3; 1 failed. Contoso Logistics: The account is on credit hold."') !== -1),
         `${JSON.stringify(actSelect.outputs())} | ${statusOf(actSelect)} | ${errorDialogs(actSelect).join()}`,
     );
 

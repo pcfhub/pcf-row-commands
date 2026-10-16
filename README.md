@@ -143,7 +143,7 @@ selected does the same for a selection. Open calls `openForm`, and with no form
 behind the demo the event log names the record instead. Nothing leaves the
 browser. A refused delete shows too: the fixture declares a fault
 (pcfhub/pcfhub#53) that refuses Northwind Traders, so deleting it opens the
-platform's error dialog with the reason under Details, and the row stays.
+platform's error dialog with the reason in its message, and the row stays.
 
 What was always real is which commands each row offers and why. The address is
 read from the bound column and checked before a button appears, so the record
