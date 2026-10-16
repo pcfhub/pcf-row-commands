@@ -89,6 +89,15 @@ const SHOTS = [
              ] }))} });
          await new Promise((resolve) => setTimeout(resolve, 300));
          __shot.boxes()[1].click(); __shot.boxes()[4].click();`],
+    ['screenshot-action.png', 1400, '0.4.0: a command that calls a Custom API, pressed on the first row: the answer said above the table',
+        `__shot.inputs({ ...${JSON.stringify(DEFAULTS)},
+             commands: ${JSON.stringify(JSON.stringify({ commands: [
+                 { name: 'escalate', label: 'Escalate', icon: 'flag', action: 'cll_Escalate', bound: true, parameters: { Reason: 'From the grid' }, result: 'Ticket' },
+                 { name: 'hold', label: 'Credit hold', icon: 'warning', set: { creditonhold: true } },
+             ] }))} });
+         await new Promise((resolve) => setTimeout(resolve, 300));
+         __shot.control().querySelector('.RowCommands-command--escalate').click();
+         await new Promise((resolve) => setTimeout(resolve, 300));`],
     ['screenshot-dark.png', 1060, 'the dark fallbacks, with a row selected',
         `__shot.set('harness-dark', true);
          __shot.inputs({ ...${JSON.stringify(DEFAULTS)}, showSelection: 'true', showDelete: 'true' });

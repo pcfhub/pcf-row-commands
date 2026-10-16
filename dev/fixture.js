@@ -52,6 +52,23 @@
         title: 'Active Accounts',
 
         /*
+         * Web API actions a command can call (0.4.0; `actionAnswer` in
+         * host.js). `cll_Escalate` is a stand-in Custom API bound to account,
+         * answering what a plug-in behind it might; the harness and the
+         * screenshots use it, and the suite brings its own.
+         */
+        actions: {
+            cll_Escalate: {
+                boundTo: 'account',
+                parameters: { Reason: { type: 'Edm.String', optional: true } },
+                response: ['Ticket'],
+                answer: function (params, id) {
+                    return { Ticket: 'Ticket ESC-' + String(id).replace(/\D/g, '').padStart(4, '0') + ' opened.' };
+                },
+            },
+        },
+
+        /*
          * What `utils.getEntityMetadata` answers for the choices, in the shapes
          * measured on a form: Status with `DefaultStatus` per state and Status
          * Reason with the `State` each reason belongs to (account, 2026-10-08,
