@@ -167,6 +167,36 @@
   <data name="RowCommands_CommandFailed" xml:space="preserve">
     <value>{0}: {1} を更新できませんでした。</value>
   </data>
+  <data name="RowCommands_ActionDone" xml:space="preserve">
+    <value>{1} に対して {0} を実行しました。</value>
+  </data>
+  <data name="RowCommands_ActionDoneResult" xml:space="preserve">
+    <value>{1} に対して {0} を実行しました: {2}</value>
+  </data>
+  <data name="RowCommands_ActionFailed" xml:space="preserve">
+    <value>{1} に対して {0} を実行できませんでした。</value>
+  </data>
+  <data name="RowCommands_ActionNameHint" xml:space="preserve">
+    <value>アクション名 {0} と、バインドされているかどうかを確認してください。名前は大文字と小文字が区別されます。</value>
+  </data>
+  <data name="RowCommands_ActionNoTable" xml:space="preserve">
+    <value>{0} のレコードのアドレスを読み取れませんでした。</value>
+  </data>
+  <data name="RowCommands_RunningProgress" xml:space="preserve">
+    <value>{1} 件中 {0} 件目を実行しています…</value>
+  </data>
+  <data name="RowCommands_RunSelectedText" xml:space="preserve">
+    <value>{0} を {1} 件のレコードに対して実行します。</value>
+  </data>
+  <data name="RowCommands_RanSome" xml:space="preserve">
+    <value>{1} 件中 {0} 件で実行しました。{2} 件は失敗しました。</value>
+  </data>
+  <data name="RowCommands_RunStopped" xml:space="preserve">
+    <value>{1} 件中 {0} 件で停止しました。</value>
+  </data>
+  <data name="RowCommands_RanMany" xml:space="preserve">
+    <value>{0} 件のレコードに対して実行しました。</value>
+  </data>
   <data name="RowCommands_CommandConfirm" xml:space="preserve">
     <value>続行</value>
   </data>

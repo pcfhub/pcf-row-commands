@@ -12,14 +12,29 @@
  *         { "name": "approve", "label": "Approve", "icon": "check",
  *           "set": { "cll_approval": 100000001 }, "confirm": "Approve {0}?",
  *           "selection": true },
- *         { "name": "escalate", "label": { "1033": "Escalate", "1036": "Escalader" } }
+ *         { "name": "escalate", "label": { "1033": "Escalate", "1036": "Escalader" } },
+ *         { "name": "notify", "label": "Notify owner", "icon": "send",
+ *           "action": "cll_NotifyOwner", "bound": true,
+ *           "parameters": { "Reason": "Raised from the grid", "Case": "{record}" },
+ *           "result": "Message", "confirm": "Notify the owner of {0}?" }
  *       ]
  *     }
  *
  * **A command with `set` writes those columns on the row**, through the Web
- * API, in one update. **A command without `set` writes nothing**: it is a
- * press, reported on the outputs (and raised as `onRowCommand`) for a form
- * script or a canvas formula to act on.
+ * API, in one update. **A command with `action` calls a Web API action** — a
+ * Custom API or a platform message — **bound** to the row's table or not, with
+ * `parameters` sent as written once `{id}` and `{record}` are filled in
+ * (`action.ts`). **A command with neither writes nothing**: it is a press,
+ * reported on the outputs (and raised as `onRowCommand`) for a form script or
+ * a canvas formula to act on.
+ *
+ * Since 0.4.0, measured before it was written (SPEC.md, *0.4.0, measured
+ * before it is written*): an action's name is **case-sensitive** (P2), so it is
+ * kept as written; `bound` is **required** beside `action`, because the
+ * platform's own messages are mostly unbound and makers' Custom APIs mostly
+ * bound, and a guess sends a 404; and `{record}` is only ever a whole value,
+ * because the reference it becomes is an object the server refuses without
+ * its `@odata.type` (P3).
  *
  * **Strict on purpose.** An unknown key is refused by name rather than
  * ignored: `"lable"` silently dropped is a command with no label and a maker
@@ -36,14 +51,28 @@ export const ICON_NAMES = ['run', 'check', 'dismiss', 'flag', 'send', 'star', 'w
 
 export type IconName = (typeof ICON_NAMES)[number];
 
+/** A Web API action a command calls. */
+export interface ActionDef {
+    /** The message's unique name, as written — the server is case-sensitive about it. */
+    name: string;
+    /** Bound to the row's table (`<set>(<id>)/Microsoft.Dynamics.CRM.<name>`), or unbound. */
+    bound: boolean;
+    /** The body, as written; `{id}` and `{record}` are filled in per row. */
+    parameters: Record<string, unknown>;
+    /** A response property whose value is said after a single row's call, or `null`. */
+    result: string | null;
+}
+
 export interface CommandDef {
     /** What `invokedCommand` reports. Lower camel case. */
     name: string;
     /** One label, or one per language by LCID. */
     label: string | Record<string, string>;
     icon: IconName;
-    /** The columns this command writes, or `null` for a press-only command. */
+    /** The columns this command writes, or `null`. */
     set: Record<string, SetValue> | null;
+    /** The action this command calls, or `null`. Never both this and `set`. */
+    action: ActionDef | null;
     /** A sentence to confirm with, `{0}` the record's name, or `null` for none. */
     confirm: string | null;
     /** Whether the bar over a selection offers it too. */
@@ -63,7 +92,14 @@ const NAME = /^[a-z][A-Za-z0-9]{0,31}$/;
 /** A logical name, or a lookup's navigation property with `@odata.bind`. */
 const COLUMN = /^[a-z_][a-z0-9_]*(@odata\.bind)?$/i;
 
-const KEYS = ['name', 'label', 'icon', 'set', 'confirm', 'selection'];
+const KEYS = ['name', 'label', 'icon', 'set', 'action', 'bound', 'parameters', 'result', 'confirm', 'selection'];
+
+/** An action's, a parameter's or a response property's name: what the Web API puts in a URL or a body. */
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+
+/** The two tokens a parameter value may carry. Anything else in braces is sent as written. */
+export const TOKEN_ID = '{id}';
+export const TOKEN_RECORD = '{record}';
 
 /**
  * Whether the property holds the JSON itself rather than a web resource's
@@ -177,6 +213,16 @@ export function parseCommands(text: string): ParseResult {
             }
         }
 
+        const action = readAction(item, where, name);
+
+        if (typeof action === 'string') {
+            return fail(action);
+        }
+
+        if (action !== null && set !== null) {
+            return fail(`${where} ("${name}"): a command either writes columns ("set") or calls an action ("action"), not both`);
+        }
+
         let confirm: string | null = null;
 
         if (item.confirm !== undefined) {
@@ -191,7 +237,7 @@ export function parseCommands(text: string): ParseResult {
             return fail(`${where} ("${name}"): "selection" must be true or false`);
         }
 
-        commands.push({ name, label, icon, set, confirm, selection: item.selection === true });
+        commands.push({ name, label, icon, set, action, confirm, selection: item.selection === true });
     }
 
     return { ok: true, commands };
@@ -271,6 +317,94 @@ function sameValue(have: unknown, wanted: SetValue): boolean {
     }
 
     return String(have) === wanted;
+}
+
+/**
+ * The `action` block of one command: `null` when it has none, the sentence
+ * saying what is wrong, or the action. `bound`, `parameters` and `result`
+ * belong to an action, so any of them without one is refused by name.
+ */
+function readAction(item: Record<string, unknown>, where: string, name: string): ActionDef | string | null {
+    const at = `${where} ("${name}")`;
+
+    if (item.action === undefined) {
+        const stray = ['bound', 'parameters', 'result'].find((key) => item[key] !== undefined);
+
+        return stray === undefined ? null : `${at}: "${stray}" belongs to an "action", and this command has none`;
+    }
+
+    if (typeof item.action !== 'string' || !IDENTIFIER.test(item.action)) {
+        return `${at}: "action" must be the action's unique name — letters, digits and underscores, as written in the Custom API`;
+    }
+
+    if (typeof item.bound !== 'boolean') {
+        return `${at}: "bound" must be true (the action is bound to this view's table) or false — it says how the call is addressed`;
+    }
+
+    let parameters: Record<string, unknown> = {};
+
+    if (item.parameters !== undefined) {
+        if (!isObject(item.parameters)) {
+            return `${at}: "parameters" must be an object of parameter names to values`;
+        }
+
+        const badName = Object.keys(item.parameters).find((key) => !IDENTIFIER.test(key));
+
+        if (badName !== undefined) {
+            return `${at}: "${badName}" is not a parameter's unique name`;
+        }
+
+        const embedded = findEmbeddedRecord(item.parameters);
+
+        if (embedded !== null) {
+            return `${at}: "${TOKEN_RECORD}" must be a whole value — it becomes a reference to the row, not text (in "${embedded}")`;
+        }
+
+        parameters = item.parameters;
+    }
+
+    let result: string | null = null;
+
+    if (item.result !== undefined) {
+        if (typeof item.result !== 'string' || !IDENTIFIER.test(item.result)) {
+            return `${at}: "result" must be the name of one of the action's response properties`;
+        }
+
+        result = item.result;
+    }
+
+    return { name: item.action, bound: item.bound, parameters, result };
+}
+
+/** The key under which a string holds `{record}` beside other text, or `null`. */
+function findEmbeddedRecord(value: unknown, key = ''): string | null {
+    if (typeof value === 'string') {
+        return value !== TOKEN_RECORD && value.includes(TOKEN_RECORD) ? key : null;
+    }
+
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            const found = findEmbeddedRecord(item, key);
+
+            if (found !== null) {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    if (isObject(value)) {
+        for (const [inner, item] of Object.entries(value)) {
+            const found = findEmbeddedRecord(item, inner);
+
+            if (found !== null) {
+                return found;
+            }
+        }
+    }
+
+    return null;
 }
 
 function readLabel(value: unknown): string | Record<string, string> | null {

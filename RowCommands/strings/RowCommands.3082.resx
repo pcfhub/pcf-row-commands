@@ -167,6 +167,36 @@
   <data name="RowCommands_CommandFailed" xml:space="preserve">
     <value>{0}: no se pudo actualizar {1}.</value>
   </data>
+  <data name="RowCommands_ActionDone" xml:space="preserve">
+    <value>{0} se ejecutó en {1}.</value>
+  </data>
+  <data name="RowCommands_ActionDoneResult" xml:space="preserve">
+    <value>{0} se ejecutó en {1}: {2}</value>
+  </data>
+  <data name="RowCommands_ActionFailed" xml:space="preserve">
+    <value>{0} no se pudo ejecutar en {1}.</value>
+  </data>
+  <data name="RowCommands_ActionNameHint" xml:space="preserve">
+    <value>Compruebe el nombre de la acción, {0}, y si está enlazada: los nombres distinguen mayúsculas de minúsculas.</value>
+  </data>
+  <data name="RowCommands_ActionNoTable" xml:space="preserve">
+    <value>El control no pudo leer cómo se direccionan los registros de {0}.</value>
+  </data>
+  <data name="RowCommands_RunningProgress" xml:space="preserve">
+    <value>Ejecutando {0} de {1}…</value>
+  </data>
+  <data name="RowCommands_RunSelectedText" xml:space="preserve">
+    <value>{0} se ejecutará en {1} registros.</value>
+  </data>
+  <data name="RowCommands_RanSome" xml:space="preserve">
+    <value>Se ejecutó en {0} de {1}; {2} con errores.</value>
+  </data>
+  <data name="RowCommands_RunStopped" xml:space="preserve">
+    <value>Detenido después de {0} de {1}.</value>
+  </data>
+  <data name="RowCommands_RanMany" xml:space="preserve">
+    <value>Se ejecutó en {0} registros.</value>
+  </data>
   <data name="RowCommands_CommandConfirm" xml:space="preserve">
     <value>Continuar</value>
   </data>

@@ -146,6 +146,15 @@ const TEMPLATES = {
     RowCommands_ConfigNotFound: 'Not found: {0}',
     RowCommands_ConfigDenied: 'Denied: {0} ({1})',
     RowCommands_ConfigInvalid: 'Invalid: {0}',
+    // 0.4.0, the same rule.
+    RowCommands_ActionDone: '{0} ran on {1}.',
+    RowCommands_ActionDoneResult: '{0} ran on {1}: {2}',
+    RowCommands_ActionFailed: '{0} could not run on {1}.',
+    RowCommands_ActionNameHint: "Check the action's name, {0}, and whether it is bound: names are case-sensitive.",
+    RowCommands_ActionNoTable: 'Cannot address {0} records.',
+    RowCommands_RunSelectedText: '{0} will run on {1} records.',
+    RowCommands_RanSome: 'Ran on {0} of {1}; {2} failed.',
+    RowCommands_RanMany: 'Ran on {0} records.',
 };
 
 const speaks = (key) => (TEMPLATES[key] !== undefined ? TEMPLATES[key] : marked(key));
@@ -1499,6 +1508,107 @@ check(
     String(widthOf(dataHeaders(locked)[0])),
 );
 
+/* ============================================ 0.4.0's decision modules */
+
+/*
+ * A command that calls a Web API action: parsed and addressed in source, its
+ * refusals read the way SPEC.md P2–P5 measured them, before the bundle
+ * section proves index.ts asks.
+ */
+const action = load('action');
+
+{
+    const parsed = config.parseCommands(JSON.stringify([
+        { name: 'escalate', label: 'Escalate', action: 'cll_Escalate', bound: true, parameters: { Reason: 'x', Case: '{record}' }, result: 'Message' },
+        { name: 'ping', label: 'Ping', action: 'cll_Ping', bound: false },
+    ]));
+
+    check(
+        'config: an action command keeps its name as written, bound, its parameters and result; parameters default to none',
+        parsed.ok && parsed.commands[0].action.name === 'cll_Escalate' && parsed.commands[0].action.bound === true
+            && parsed.commands[0].action.parameters.Case === '{record}' && parsed.commands[0].action.result === 'Message'
+            && parsed.commands[0].set === null
+            && JSON.stringify(parsed.commands[1].action) === '{"name":"cll_Ping","bound":false,"parameters":{},"result":null}',
+        JSON.stringify(parsed),
+    );
+
+    const refused = {
+        noBound: config.parseCommands('[{"name":"a","label":"A","action":"cll_X"}]'),
+        boundAlone: config.parseCommands('[{"name":"a","label":"A","bound":true}]'),
+        resultAlone: config.parseCommands('[{"name":"a","label":"A","result":"Message"}]'),
+        both: config.parseCommands('[{"name":"a","label":"A","action":"cll_X","bound":true,"set":{"industrycode":1}}]'),
+        badName: config.parseCommands('[{"name":"a","label":"A","action":"cll X","bound":true}]'),
+        embedded: config.parseCommands('[{"name":"a","label":"A","action":"cll_X","bound":true,"parameters":{"Note":"see {record}"}}]'),
+        notObject: config.parseCommands('[{"name":"a","label":"A","action":"cll_X","bound":true,"parameters":[1]}]'),
+        badParam: config.parseCommands('[{"name":"a","label":"A","action":"cll_X","bound":true,"parameters":{"Bad Name":1}}]'),
+    };
+    const said = Object.fromEntries(Object.entries(refused).map(([key, result]) => [key, result.ok ? 'ACCEPTED' : result.problem]));
+
+    check(
+        'config: every action mistake is refused by name — no bound, bound or result alone, set and action together, a {record} inside text',
+        Object.values(refused).every((result) => !result.ok)
+            && /"bound" must be true/.test(said.noBound) && /"bound" belongs to an "action"/.test(said.boundAlone)
+            && /"result" belongs/.test(said.resultAlone) && /not both/.test(said.both)
+            && /must be a whole value/.test(said.embedded) && /in "Note"/.test(said.embedded) && /"Bad Name"/.test(said.badParam),
+        JSON.stringify(said),
+    );
+
+    const keys = { table: 'cll_account', set: 'cll_accounts', primaryId: 'cll_accountid' };
+    const bound = parsed.commands[0].action;
+
+    check(
+        'action: a bound path is <set>(<id>)/Microsoft.Dynamics.CRM.<name>, braces off; an unbound one is the name',
+        action.actionPath(bound, keys, '{BC4401E5-20B5-F111-AAAC-6045BD06056E}') === 'cll_accounts(BC4401E5-20B5-F111-AAAC-6045BD06056E)/Microsoft.Dynamics.CRM.cll_Escalate'
+            && action.actionPath(parsed.commands[1].action, keys, 'x') === 'cll_Ping',
+    );
+
+    const body = action.actionBody({ Reason: 'Row {id}, again {id}', Case: '{record}', Deep: [{ Path: '/cll_accounts({id})' }, 3, null, true], Other: '{name}' }, keys, 'r1');
+
+    check(
+        'action: {id} is filled in anywhere in text, {record} becomes the typed reference, deep; other braces are sent as written',
+        JSON.stringify(body) === JSON.stringify({
+            Reason: 'Row r1, again r1',
+            Case: { '@odata.type': 'Microsoft.Dynamics.CRM.cll_account', cll_accountid: 'r1' },
+            Deep: [{ Path: '/cll_accounts(r1)' }, 3, null, true],
+            Other: '{name}',
+        }),
+        JSON.stringify(body),
+    );
+
+    const payloadFault = JSON.stringify({ error: { code: '0x80048d19', message: "Error identified in Payload provided by the user for Entity :'', For more information on this error please follow this help link https://go.microsoft.com/fwlink/?linkid=2195293  ---->  InnerException : Microsoft.OData.ODataException: Cannot convert the literal 'not-a-guid' to the expected type 'Edm.Guid'. ---> System.FormatException: Guid should contain 32 digits with 4 dashes (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).\n   at System.Guid.GuidResult.SetFailure" } });
+    const missing = JSON.stringify({ error: { code: '0x80048d19', message: "Error identified in Payload provided by the user for Entity :'', ---->  InnerException : Microsoft.OData.ODataException: One or more parameters of the operation 'cll_Escalate' are missing from the request payload. The missing parameters are: Reason.\n   at Microsoft.OData" } });
+    const platform = JSON.stringify({ error: { code: '0x80040217', message: "Entity 'systemuser' With Id = 00000000-0000-0000-0000-0000000000a1 Does Not Exist" } });
+    const segment = JSON.stringify({ error: { code: '0x80060888', message: "Resource not found for the segment 'Microsoft.Dynamics.CRM.cll_Escalate'" } });
+    const read = (status, text, which = bound) => action.readRefusal(status, text, which);
+
+    check(
+        'action: a payload fault is the inner exception’s own words — no type, no ---> chain, no stack (P3, P5)',
+        read(400, payloadFault).sentence === "Cannot convert the literal 'not-a-guid' to the expected type 'Edm.Guid'."
+            && read(400, missing).sentence === "One or more parameters of the operation 'cll_Escalate' are missing from the request payload. The missing parameters are: Reason."
+            && read(400, payloadFault).code === '0x80048d19',
+        `${read(400, payloadFault).sentence} | ${read(400, missing).sentence}`,
+    );
+
+    check(
+        'action: the platform’s own refusal is shown whole; an empty body says the status',
+        read(404, platform).sentence === "Entity 'systemuser' With Id = 00000000-0000-0000-0000-0000000000a1 Does Not Exist"
+            && read(404, platform).nameWrong === false && read(401, '').sentence === 'HTTP 401',
+    );
+
+    check(
+        'action: a 404 on the action’s own segment is a wrong name; on another segment it is not',
+        read(404, segment).nameWrong === true
+            && read(404, JSON.stringify({ error: { code: '0x80060888', message: "Resource not found for the segment 'leads'." } })).nameWrong === false,
+    );
+
+    check(
+        'action: result reads the named property as text, nothing from a 204 or a null (P4)',
+        action.readResult('{"Message":"Escalated","Count":3}', 'Message') === 'Escalated' && action.readResult('{"Count":3}', 'Count') === '3'
+            && action.readResult('', 'Message') === null && action.readResult('{"Message":null}', 'Message') === null
+            && action.readResult('{"Message":"x"}', null) === null,
+    );
+}
+
 /* ====================================================== the delete itself */
 
 (async () => {
@@ -2461,6 +2571,189 @@ check(
         escalateAll !== undefined && choosing.outputs().invokedCommand === 'escalateSelected'
             && bulkHeard.some((payload) => payload.command === 'escalate' && payload.recordIds.length === 3),
         `${JSON.stringify(choosing.outputs())} | ${JSON.stringify(bulkHeard)}`,
+    );
+
+    /* ===================================== 0.4.0: commands that call an action */
+
+    const notified = [];
+    const ACTION_FIXTURE = Object.assign({}, fixture, {
+        actions: {
+            cll_Escalate: {
+                boundTo: 'account',
+                parameters: { Reason: { type: 'Edm.String' } },
+                response: ['Message'],
+                answer: (params, id) => ({ Message: `Escalated ${id}: ${params.Reason}` }),
+                // A plug-in's refusal, short and whole, as the platform's own was (P5).
+                refuse: (params, id) => (id === 'a02' ? { status: 400, code: '0x80040265', message: 'The account is on credit hold.' } : null),
+            },
+            cll_Notify: {
+                // The rig's row ids are not GUIDs, so RowId is a string here; the server's Guid rule has its own rig check.
+                parameters: { RowId: { type: 'Edm.String' }, Target: { type: 'Microsoft.Dynamics.CRM.crmbaseentity' } },
+                response: [],
+                answer: (params) => {
+                    notified.push(params);
+                },
+            },
+        },
+    });
+    const ACTIONS = JSON.stringify({
+        commands: [
+            { name: 'escalate', label: 'Escalate', icon: 'flag', action: 'cll_Escalate', bound: true, parameters: { Reason: 'From row {id}' }, result: 'Message', selection: true },
+            { name: 'notify', label: 'Notify', icon: 'send', action: 'cll_Notify', bound: false, parameters: { RowId: '{id}', Target: '{record}' }, confirm: 'Notify about {0}?' },
+            { name: 'misspelt', label: 'Misspelt', action: 'cll_escalate', bound: true },
+        ],
+    });
+    const posts = (view) => callsLike(view, 'fetch("POST ');
+    const statusOf = (view) => view.find('.RowCommands-status').textContent;
+    const errorDialogs = (view) => callsLike(view, 'navigation.openErrorDialog');
+
+    const actHeard = [];
+    const acting = bind({ fixture: ACTION_FIXTURE, inputs: { commands: ACTIONS }, contextInfo: FORM, events: { onRowCommand: (payload) => actHeard.push(payload) } });
+
+    await ready(acting);
+
+    check(
+        'an action command is drawn on every row — nothing on a row says it already ran — and asks for no column',
+        ['Fabrikam', 'Contoso'].every((name) => on(acting, name, 'escalate') && on(acting, name, 'notify') && on(acting, name, 'misspelt'))
+            && callsLike(acting, 'addColumn').length === 0,
+        `${commandsIn(rowNamed(acting, 'Contoso')).map((button) => button.className.replace(/.*--/, '')).join('/')} | ${callsLike(acting, 'addColumn').join()}`,
+    );
+
+    press(on(acting, 'Fabrikam', 'escalate'));
+    await ready(acting);
+
+    check(
+        'Escalate posts the bound action on the row — the set and id from the metadata, the name as written, {id} filled in',
+        posts(acting).join() === 'fetch("POST /api/data/v9.2/accounts(a01)/Microsoft.Dynamics.CRM.cll_Escalate")',
+        posts(acting).join(' | '),
+    );
+
+    check(
+        'and after the call: the outputs, onRowCommand, the result property said, one refresh',
+        acting.outputs().invokedCommand === 'escalate' && acting.outputs().invokedRecordId === 'a01'
+            && actHeard.length === 1 && actHeard[0].command === 'escalate'
+            && statusOf(acting) === 'Escalate ran on Fabrikam Manufacturing: Escalated a01: From row a01'
+            && callsLike(acting, 'refresh').length >= 1,
+        `${JSON.stringify(acting.outputs())} | ${statusOf(acting)}`,
+    );
+
+    const countBefore = acting.outputs().invokeCount;
+
+    press(on(acting, 'Contoso', 'escalate'));
+    await ready(acting);
+
+    check(
+        'a refusal reports nothing, and says the server’s own words in the error dialog',
+        acting.outputs().invokeCount === countBefore
+            && statusOf(acting) === 'Escalate could not run on Contoso Logistics.'
+            && errorDialogs(acting).length === 1 && errorDialogs(acting)[0].indexOf('The account is on credit hold.') !== -1,
+        `${statusOf(acting)} | ${errorDialogs(acting).join()}`,
+    );
+
+    press(on(acting, 'Fabrikam', 'misspelt'));
+    await ready(acting);
+
+    check(
+        'a name the environment does not have, or spelled another way, is refused with a hint that names are case-sensitive (P2)',
+        errorDialogs(acting).length === 2 && errorDialogs(acting)[1].indexOf("Check the action's name, cll_escalate, and whether it is bound: names are case-sensitive.") !== -1,
+        errorDialogs(acting)[1],
+    );
+
+    press(on(acting, 'Fabrikam', 'notify'));
+    await ready(acting);
+
+    check(
+        'Notify asks first, then posts the unbound action with {id} as text and {record} as a typed reference (P3), and a 204 says it ran (P4)',
+        callsLike(acting, 'navigation.openConfirmDialog').join().indexOf('Notify about Fabrikam Manufacturing?') !== -1
+            && notified.length === 1 && notified[0].RowId === 'a01'
+            && JSON.stringify(notified[0].Target) === '{"@odata.type":"Microsoft.Dynamics.CRM.account","accountid":"a01"}'
+            && statusOf(acting) === 'Notify ran on Fabrikam Manufacturing.',
+        `${JSON.stringify(notified)} | ${statusOf(acting)}`,
+    );
+
+    const declinedAction = bind({ fixture: ACTION_FIXTURE, inputs: { commands: ACTIONS }, contextInfo: FORM, dialogs: 'cancelled' });
+
+    await ready(declinedAction);
+    press(on(declinedAction, 'Fabrikam', 'notify'));
+    await ready(declinedAction);
+
+    check(
+        'a cancelled confirmation posts nothing and reports nothing',
+        posts(declinedAction).length === 0 && declinedAction.outputs().invokeCount === 0,
+        posts(declinedAction).join(),
+    );
+
+    const actingMain = bind({ fixture: ACTION_FIXTURE, inputs: { commands: ACTIONS } });
+    const actingCanvas = bind({ fixture: ACTION_FIXTURE, inputs: { commands: ACTIONS }, host: 'canvas' });
+
+    await ready(actingMain);
+    await ready(actingCanvas);
+
+    check(
+        'an action command is drawn on a main grid, where the call is the point, and not in a canvas app, which has no organisation to post to',
+        on(actingMain, 'Fabrikam', 'escalate') !== null && on(actingCanvas, 'Fabrikam', 'escalate') === null
+            && on(actingCanvas, 'Fabrikam', 'notify') === null,
+        `${commandsIn(rowNamed(actingMain, 'Fabrikam')).map((button) => button.className.replace(/.*--/, '')).join('/')} | ${commandsIn(rowNamed(actingCanvas, 'Fabrikam')).map((button) => button.className.replace(/.*--/, '')).join('/')}`,
+    );
+
+    const actionNoMetadata = bind({ fixture: ACTION_FIXTURE, inputs: { commands: ACTIONS }, contextInfo: FORM, quirks: { metadataRejects: true } });
+
+    await ready(actionNoMetadata);
+    press(on(actionNoMetadata, 'Fabrikam', 'escalate'));
+    await ready(actionNoMetadata);
+
+    check(
+        'where getEntityMetadata cannot say, the set and id column come from the EntityDefinitions fetch, and the call still goes',
+        callsLike(actionNoMetadata, 'fetch("/api/data/v9.2/EntityDefinitions(LogicalName=\'account\')?$select=EntitySetName,PrimaryIdAttribute').length === 1
+            && posts(actionNoMetadata).join() === 'fetch("POST /api/data/v9.2/accounts(a01)/Microsoft.Dynamics.CRM.cll_Escalate")',
+        actionNoMetadata.calls().filter((call) => /fetch/.test(call)).join(' | '),
+    );
+
+    const offlineAction = bind({ fixture: ACTION_FIXTURE, inputs: { commands: ACTIONS }, contextInfo: FORM, quirks: { actionStatus: 0 } });
+
+    await ready(offlineAction);
+    press(on(offlineAction, 'Fabrikam', 'escalate'));
+    await ready(offlineAction);
+
+    check(
+        'offline, the call is refused in the browser’s words and nothing is reported',
+        offlineAction.outputs().invokeCount === 0 && errorDialogs(offlineAction).length === 1 && errorDialogs(offlineAction)[0].indexOf('Failed to fetch') !== -1,
+        errorDialogs(offlineAction).join(),
+    );
+
+    const actSelect = bind({ fixture: ACTION_FIXTURE, inputs: { commands: ACTIONS, showSelection: true }, contextInfo: FORM });
+
+    await ready(actSelect);
+
+    for (const name of ['Fabrikam', 'Contoso', 'Litware']) {
+        change(rowNamed(actSelect, name).querySelector('.RowCommands-select'));
+    }
+
+    const actBar = actSelect.findAll('.RowCommands-bulkButton').map((button) => button.dataset.focus);
+
+    check(
+        'the bar offers the action marked for the selection, and not the others',
+        actBar.includes('bulk:command:escalate') && !actBar.includes('bulk:command:notify'),
+        actBar.join(' '),
+    );
+
+    press(actSelect.findAll('.RowCommands-bulkButton').find((button) => button.dataset.focus === 'bulk:command:escalate'));
+    await ready(actSelect);
+    await ready(actSelect);
+
+    check(
+        'over the selection: one confirmation naming three, three calls one by one in page order (P6)',
+        callsLike(actSelect, 'navigation.openConfirmDialog').join().indexOf('Escalate will run on 3 records.') !== -1
+            && posts(actSelect).map((call) => /accounts\((a\d+)\)/.exec(call)[1]).join() === 'a01,a02,a05',
+        `${callsLike(actSelect, 'navigation.openConfirmDialog').join()} | ${posts(actSelect).join(' | ')}`,
+    );
+
+    check(
+        'and the outputs carry only the rows it ran on; the refusal is named in the dialog, by row',
+        actSelect.outputs().invokedCommand === 'escalateSelected' && actSelect.outputs().invokedRecordId === 'a01,a05'
+            && statusOf(actSelect) === 'Ran on 2 of 3; 1 failed.'
+            && errorDialogs(actSelect).some((call) => call.indexOf('Contoso Logistics: The account is on credit hold.') !== -1),
+        `${JSON.stringify(actSelect.outputs())} | ${statusOf(actSelect)} | ${errorDialogs(actSelect).join()}`,
     );
 
     disposeAll();

@@ -1,10 +1,9 @@
 import { IInputs, IOutputs } from './generated/ManifestTypes';
+import { ActionFetch, Refusal, RowKeys, callAction } from './action';
 import { BulkItem, BulkResult, runSequential } from './bulk';
 import { CommandDef, IconName, columnsWritten, holdsAll, labelFor } from './config';
 import { ConfigLoad, Fetch, loadCommands } from './configLoader';
 import { PRIVILEGE_WRITE, canByRole, canDeleteByRole } from './privileges';
-// THROWAWAY: the 0.3.4 probe for 0.4.0. Delete with probe.ts before 0.4.0.
-import { probe } from './probe';
 import { StateOption, isActiveInactive, readState, stateOptionsFrom, statePayload, targetState } from './state';
 import { pageState, prune, sameSet, toggle, togglePage } from './selection';
 import {
@@ -196,7 +195,14 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * A bulk delete in flight, or `null`. `stop` is the Stop button's only
      * effect: the record in flight finishes, and the next is not started.
      */
-    private bulk: { done: number; total: number; stop: boolean; kind: 'delete' | 'update' } | null = null;
+    private bulk: { done: number; total: number; stop: boolean; kind: 'delete' | 'update' | 'action' } | null = null;
+
+    /**
+     * How each table's rows are addressed for an action — its entity set and
+     * id column — read once per table, from the metadata the control already
+     * asks for (SPEC.md P1). `null` when neither route could say.
+     */
+    private rowKeyLoads = new Map<string, Promise<RowKeys | null>>();
 
     /** The progress line, updated in place so the Stop button keeps focus. */
     private progressText: HTMLElement | null = null;
@@ -314,9 +320,6 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const dataset = context.parameters.records;
 
         this.latest = { context, dataset };
-
-        // THROWAWAY: the 0.3.4 probe for 0.4.0.
-        probe(context, dataset);
 
 
         this.applyTheme(context);
@@ -1339,7 +1342,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             return '';
         }
 
-        return getString(bulk.kind === 'update' ? 'RowCommands_UpdatingProgress' : 'RowCommands_DeletingProgress')
+        return getString(bulk.kind === 'update' ? 'RowCommands_UpdatingProgress' : bulk.kind === 'action' ? 'RowCommands_RunningProgress' : 'RowCommands_DeletingProgress')
             .replace('{0}', String(Math.min(bulk.done + 1, bulk.total)))
             .replace('{1}', String(bulk.total));
     }
@@ -1656,7 +1659,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                     GLYPH_CUSTOM[command.icon],
                     text,
                     getString('RowCommands_CommandRecord').replace('{0}', text).replace('{1}', label),
-                    command.set ? idle : enabled,
+                    command.set || command.action ? idle : enabled,
                     () => this.runCustom(context, dataset, command, id, label, getString),
                     true,
                 ),
@@ -1873,6 +1876,13 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      *   - **A command that writes** needs a host that can write, a role that
      *     allows Write, and — when it asks for a confirmation — a host that
      *     can ask. A maker who wrote `confirm` gets the question or no button.
+     *   - **A command that calls an action** (0.4.0) needs a model-driven
+     *     host — the organisation URL is what it posts to, and a canvas app
+     *     has none — and a host that can ask when it says `confirm`. **It is
+     *     drawn on a main grid too**: the call is the point, not a listener.
+     *     There is no privilege to ask first — a Custom API's
+     *     `ExecutePrivilegeName` is not readable from here — so a user the
+     *     server refuses sees the refusal.
      *   - **A press-only command** needs somebody listening. On a form, a
      *     form script reads the outputs (`addOnOutputChange`, measured P7); in
      *     a canvas app, `OnChange` does. **A main grid has neither** — no form
@@ -1887,9 +1897,12 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const writes = this.canWrite(context) && this.writeAllowed(context, dataset) !== false;
         const canAsk = typeof context.navigation?.openConfirmDialog === 'function';
         const heard = !modelDrivenHost(context) || formRecordId(context) !== null;
+        const calls = modelDrivenHost(context) && typeof fetch === 'function';
 
         return this.config.commands.filter((command) =>
-            command.set ? writes && (command.confirm === null || canAsk) : heard,
+            command.action ? calls && (command.confirm === null || canAsk)
+                : command.set ? writes && (command.confirm === null || canAsk)
+                    : heard,
         );
     }
 
@@ -1999,6 +2012,12 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         label: string,
         getString: (id: string) => string,
     ): void {
+        if (command.action) {
+            this.runAction(context, dataset, command, id, label, getString);
+
+            return;
+        }
+
         if (!command.set) {
             this.report(id, command.name);
             this.raise(context, dataset, command.name, [id]);
@@ -2060,6 +2079,177 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                 this.pending = '';
                 this.rerender();
             });
+    }
+
+    /**
+     * One of the maker's commands that calls an action, on one row (0.4.0).
+     *
+     * Ask first if it says to; work out how the row is addressed; post the
+     * call; and only then report on the outputs — so a form script reacting
+     * to them runs after the action did — say the `result` property when the
+     * command names one and the answer carries it, and refresh once: whatever
+     * the action changed is its plug-in's doing, and the rows show it on the
+     * fetch. A refusal is said in the server's own words (`readRefusal`), with
+     * a hint when the name is the problem — names are case-sensitive (P2).
+     */
+    private runAction(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        command: CommandDef,
+        id: string,
+        label: string,
+        getString: (id: string) => string,
+    ): void {
+        const action = command.action;
+        const base = organisationUrl(context);
+        const navigation = context.navigation;
+
+        if (!action || base === null || this.pending !== '' || this.bulk) {
+            return;
+        }
+
+        const text = labelFor(command, languageOf(context));
+        const table = dataset.getTargetEntityType();
+        const asking: Promise<{ confirmed: boolean } | undefined> = command.confirm !== null && navigation
+            ? Promise.resolve(
+                navigation.openConfirmDialog({
+                    title: text,
+                    text: command.confirm.replace('{0}', label),
+                    confirmButtonLabel: getString('RowCommands_CommandConfirm'),
+                    cancelButtonLabel: getString('RowCommands_DeleteCancel'),
+                }),
+            )
+            : Promise.resolve({ confirmed: true });
+
+        this.pending = id;
+        this.rerender();
+
+        void asking
+            .then((response) => {
+                if (this.disposed) {
+                    return undefined;
+                }
+
+                if (!response?.confirmed) {
+                    this.announce(getString('RowCommands_UpdateCancelled'));
+                    return undefined;
+                }
+
+                return this.rowKeys(context, table).then((keys) => {
+                    if (this.disposed) {
+                        return;
+                    }
+
+                    if (keys === null) {
+                        this.refused(context, getString('RowCommands_ActionFailed').replace('{0}', text).replace('{1}', label), getString('RowCommands_ActionNoTable').replace('{0}', table));
+                        return undefined;
+                    }
+
+                    return callAction(fetch as unknown as ActionFetch, base, action, keys, id).then((outcome) => {
+                        if (this.disposed) {
+                            return;
+                        }
+
+                        if (!outcome.ok) {
+                            this.refused(context, getString('RowCommands_ActionFailed').replace('{0}', text).replace('{1}', label), this.refusalText(outcome.refusal, action.name, getString));
+                            return;
+                        }
+
+                        this.report(id, command.name);
+                        this.raise(context, dataset, command.name, [id]);
+                        this.announce(
+                            outcome.result !== null
+                                ? getString('RowCommands_ActionDoneResult').replace('{0}', text).replace('{1}', label).replace('{2}', outcome.result)
+                                : getString('RowCommands_ActionDone').replace('{0}', text).replace('{1}', label),
+                            'success',
+                        );
+                        dataset.refresh();
+                    });
+                });
+            })
+            .catch((error: unknown) => {
+                if (!this.disposed) {
+                    this.refused(context, getString('RowCommands_ActionFailed').replace('{0}', text).replace('{1}', label), describeError(error));
+                }
+            })
+            .then(() => {
+                this.pending = '';
+                this.rerender();
+            });
+    }
+
+    /**
+     * How the view's table is addressed: `getEntityMetadata` first (Utility
+     * is declared for the privilege checks already; measured P1, both hosts),
+     * the `EntityDefinitions` fetch where it cannot say. Once per table; a
+     * table neither route answers for is `null`, and the command says so.
+     */
+    private rowKeys(context: ComponentFramework.Context<IInputs>, table: string): Promise<RowKeys | null> {
+        const cached = this.rowKeyLoads.get(table);
+
+        if (cached) {
+            return cached;
+        }
+
+        const fromMetadata = (): Promise<RowKeys | null> => {
+            const utils = (context as { utils?: { getEntityMetadata?: (name: string) => Promise<{ EntitySetName?: unknown; PrimaryIdAttribute?: unknown }> } }).utils;
+
+            if (typeof utils?.getEntityMetadata !== 'function') {
+                return Promise.resolve(null);
+            }
+
+            try {
+                return Promise.resolve(utils.getEntityMetadata(table)).then(
+                    (meta) => (typeof meta?.EntitySetName === 'string' && meta.EntitySetName !== '' && typeof meta.PrimaryIdAttribute === 'string' && meta.PrimaryIdAttribute !== ''
+                        ? { table, set: meta.EntitySetName, primaryId: meta.PrimaryIdAttribute }
+                        : null),
+                    () => null,
+                );
+            } catch {
+                return Promise.resolve(null);
+            }
+        };
+
+        const fromDefinitions = (): Promise<RowKeys | null> => {
+            const base = organisationUrl(context);
+
+            if (base === null || typeof fetch !== 'function') {
+                return Promise.resolve(null);
+            }
+
+            return fetch(`${base}/api/data/v9.2/EntityDefinitions(LogicalName='${table}')?$select=EntitySetName,PrimaryIdAttribute`, {
+                headers: { Accept: 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
+                credentials: 'same-origin',
+            })
+                .then((response) => (response.ok ? response.json() : null))
+                .then(
+                    (body: { EntitySetName?: unknown; PrimaryIdAttribute?: unknown } | null) => (body && typeof body.EntitySetName === 'string' && typeof body.PrimaryIdAttribute === 'string'
+                        ? { table, set: body.EntitySetName, primaryId: body.PrimaryIdAttribute }
+                        : null),
+                    () => null,
+                );
+        };
+
+        const load = fromMetadata().then((keys) => keys ?? fromDefinitions());
+
+        this.rowKeyLoads.set(table, load);
+        void load.then((keys) => {
+            if (keys === null) {
+                // A table nobody could describe is asked again next time, not remembered as unaddressable.
+                this.rowKeyLoads.delete(table);
+            }
+        });
+
+        return load;
+    }
+
+    /** A refusal as the user reads it, and its code for whoever opens the console. */
+    private refusalText(refusal: Refusal, name: string, getString: (id: string) => string): string {
+        console.warn(`[RowCommands] the action ${name} was refused`, refusal.status, refusal.code ?? '', refusal.sentence);
+
+        return refusal.nameWrong
+            ? `${refusal.sentence} ${getString('RowCommands_ActionNameHint').replace('{0}', name)}`
+            : refusal.sentence;
     }
 
     /**
@@ -2154,7 +2344,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
             return;
         }
 
-        if (update.kind === 'custom' && !update.command.set) {
+        if (update.kind === 'custom' && !update.command.set && !update.command.action) {
             this.report(ids.join(','), `${update.command.name}Selected`);
             this.raise(context, dataset, update.command.name, ids);
 
@@ -2163,8 +2353,11 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
 
         const navigation = context.navigation;
         const webAPI = context.webAPI;
+        const action = update.kind === 'custom' ? update.command.action : null;
+        const base = organisationUrl(context);
+        const able = action ? base !== null : this.canWrite(context) && Boolean(webAPI);
 
-        if (!this.canWrite(context) || this.pending !== '' || this.bulk || !webAPI || typeof navigation?.openConfirmDialog !== 'function') {
+        if (!able || this.pending !== '' || this.bulk || typeof navigation?.openConfirmDialog !== 'function') {
             return;
         }
 
@@ -2179,6 +2372,11 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         const applies = (id: string): boolean => {
             if (update.kind === 'state') {
                 return readState(dataset.records[id]?.getValue('statecode')) === (update.target === 1 ? 0 : 1);
+            }
+
+            // An action is never "already done" on a row: nothing on the row says it ran.
+            if (update.command.action) {
+                return true;
             }
 
             return !holdsAll(update.command.set ?? {}, (column) => this.readColumn(dataset, id, column));
@@ -2218,7 +2416,9 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                 // applied to 3 records."); a maker's command by its label, which is all there is.
                 text: update.kind === 'state'
                     ? getString(update.target === 1 ? 'RowCommands_DeactivateSelectedText' : 'RowCommands_ActivateSelectedText').replace('{0}', String(targets.length))
-                    : getString('RowCommands_UpdateSelectedText').replace('{0}', text).replace('{1}', String(targets.length)),
+                    : action
+                        ? getString('RowCommands_RunSelectedText').replace('{0}', text).replace('{1}', String(targets.length))
+                        : getString('RowCommands_UpdateSelectedText').replace('{0}', text).replace('{1}', String(targets.length)),
                 confirmButtonLabel: getString('RowCommands_CommandConfirm'),
                 cancelButtonLabel: getString('RowCommands_DeleteCancel'),
             })
@@ -2232,10 +2432,22 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
                     return undefined;
                 }
 
-                this.bulk = { done: 0, total: targets.length, stop: false, kind: 'update' };
+                this.bulk = { done: 0, total: targets.length, stop: false, kind: action ? 'action' : 'update' };
                 this.rerender();
 
-                return runSequential(items, (id) => webAPI.updateRecord(table, id, { ...payload }), {
+                const run = action && base !== null
+                    ? (id: string): Promise<unknown> => this.rowKeys(context, table).then((keys) => {
+                        if (keys === null) {
+                            return Promise.reject({ message: getString('RowCommands_ActionNoTable').replace('{0}', table) });
+                        }
+
+                        return callAction(fetch as unknown as ActionFetch, base, action, keys, id).then((outcome) => (outcome.ok
+                            ? outcome
+                            : Promise.reject({ message: this.refusalText(outcome.refusal, action.name, getString) })));
+                    })
+                    : (id: string): Promise<unknown> => (webAPI as ComponentFramework.WebApi).updateRecord(table, id, { ...payload });
+
+                return runSequential(items, run, {
                     shouldStop: () => this.disposed || this.bulk === null || this.bulk.stop,
                     onProgress: (done) => {
                         if (this.bulk) {
@@ -2289,11 +2501,12 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         }
 
         const done = String(result.done.length);
+        const ran = update.kind === 'custom' && update.command.action !== null;
 
         if (result.failed.length > 0) {
             this.refused(
                 context,
-                getString('RowCommands_UpdatedSome').replace('{0}', done).replace('{1}', String(total)).replace('{2}', String(result.failed.length)),
+                getString(ran ? 'RowCommands_RanSome' : 'RowCommands_UpdatedSome').replace('{0}', done).replace('{1}', String(total)).replace('{2}', String(result.failed.length)),
                 result.failed.map((item) => `${item.label}: ${item.detail}`).join('\n'),
             );
 
@@ -2301,11 +2514,11 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
         }
 
         if (result.stopped) {
-            this.announce(getString('RowCommands_UpdateStopped').replace('{0}', done).replace('{1}', String(total)));
+            this.announce(getString(ran ? 'RowCommands_RunStopped' : 'RowCommands_UpdateStopped').replace('{0}', done).replace('{1}', String(total)));
             return;
         }
 
-        this.announce(getString('RowCommands_UpdatedMany').replace('{0}', done), 'success');
+        this.announce(getString(ran ? 'RowCommands_RanMany' : 'RowCommands_UpdatedMany').replace('{0}', done), 'success');
     }
 
     /**

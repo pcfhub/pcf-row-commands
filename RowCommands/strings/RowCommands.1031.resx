@@ -167,6 +167,36 @@
   <data name="RowCommands_CommandFailed" xml:space="preserve">
     <value>{0}: {1} konnte nicht aktualisiert werden.</value>
   </data>
+  <data name="RowCommands_ActionDone" xml:space="preserve">
+    <value>{0} wurde für {1} ausgeführt.</value>
+  </data>
+  <data name="RowCommands_ActionDoneResult" xml:space="preserve">
+    <value>{0} wurde für {1} ausgeführt: {2}</value>
+  </data>
+  <data name="RowCommands_ActionFailed" xml:space="preserve">
+    <value>{0} konnte für {1} nicht ausgeführt werden.</value>
+  </data>
+  <data name="RowCommands_ActionNameHint" xml:space="preserve">
+    <value>Prüfen Sie den Namen der Aktion, {0}, und ob sie gebunden ist: Namen unterscheiden Groß- und Kleinschreibung.</value>
+  </data>
+  <data name="RowCommands_ActionNoTable" xml:space="preserve">
+    <value>Das Steuerelement konnte nicht lesen, wie {0}-Datensätze adressiert werden.</value>
+  </data>
+  <data name="RowCommands_RunningProgress" xml:space="preserve">
+    <value>{0} von {1} wird ausgeführt…</value>
+  </data>
+  <data name="RowCommands_RunSelectedText" xml:space="preserve">
+    <value>{0} wird für {1} Datensätze ausgeführt.</value>
+  </data>
+  <data name="RowCommands_RanSome" xml:space="preserve">
+    <value>Für {0} von {1} ausgeführt; {2} fehlgeschlagen.</value>
+  </data>
+  <data name="RowCommands_RunStopped" xml:space="preserve">
+    <value>Nach {0} von {1} angehalten.</value>
+  </data>
+  <data name="RowCommands_RanMany" xml:space="preserve">
+    <value>Für {0} Datensätze ausgeführt.</value>
+  </data>
   <data name="RowCommands_CommandConfirm" xml:space="preserve">
     <value>Fortfahren</value>
   </data>
