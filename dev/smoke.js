@@ -1515,7 +1515,7 @@ check(
  * refusals read the way SPEC.md P2–P5 measured them, before the bundle
  * section proves index.ts asks.
  */
-const action = load('action');
+const action = load('lib/web-api-action/action');
 
 {
     const parsed = config.parseCommands(JSON.stringify([

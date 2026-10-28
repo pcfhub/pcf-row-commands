@@ -1,16 +1,28 @@
+/*
+ * _template/variants/lib/web-api-action — calling a Web API action
+ *
+ * SHARED. Copied into a control as <Control>/lib/web-api-action/ and kept
+ * current by `node ../_template/scripts/sync-rig.mjs --into .`. Edit the
+ * template's copy and sync, never this one: an edited copy stops syncing.
+ * Lifted 2026-10-28 from pcf-row-commands' RowCommands/action.ts (0.4.0) for
+ * pcf-form-action-button 0.2.0, so a button on a form and a command on a row
+ * make the same call.
+ */
+
 /**
- * A command that calls a Web API action — a decision module: the address, the
- * body and what the answer means, with the one `fetch` kept to a function the
- * suite hands a stub. `context.webAPI` cannot make the call (it has the five
- * CRUD methods and nothing else), so it is a same-origin POST, which the
- * session cookie authorises.
+ * A Web API action — a decision module: the address, the body and what the
+ * answer means, with the one `fetch` kept to a function the suite hands a
+ * stub. `context.webAPI` cannot make the call (it has the five CRUD methods
+ * and nothing else), so it is a same-origin POST, which the session cookie
+ * authorises.
  *
- * What it rests on was measured on a real form before a line of it existed
- * (SPEC.md, *0.4.0, measured before it is written*, 2026-10-16), from this
- * control on a subgrid and on a main grid:
+ * What it rests on was measured on a real form before a line of it existed:
+ * pcf-hierarchy-view's 0.2.9 probe on a form (2026-10-15, A1–A4), and
+ * pcf-row-commands' 0.3.4 probe on a subgrid and a main grid (SPEC.md, *0.4.0,
+ * measured before it is written*, 2026-10-16):
  *
- *   - **P1** the entity set and the id column come from the metadata the
- *     control already reads: `cll_accounts`/`cll_accountid` on a subgrid,
+ *   - **P1** the entity set and the id column come from metadata
+ *     (`keys.ts`): `cll_accounts`/`cll_accountid` on a subgrid,
  *     `accounts`/`accountid` on the main grid.
  *   - **P2** a bound action answers 200 with its response properties, in
  *     76–272 ms, and **its name is case-sensitive** — any other spelling is a
@@ -22,14 +34,30 @@
  *   - **P5** the platform's own refusal is short and whole (*Entity
  *     'systemuser' With Id = … Does Not Exist*); a refused payload is
  *     1.5–3.6 KB with the server's stack after *InnerException :*. And a
- *     no-plug-in action on a row deleted meanwhile answers 200 — nothing here
- *     can tell, and the refresh after the call drops the row.
+ *     no-plug-in action on a record deleted meanwhile answers 200 — nothing
+ *     here can tell, so a caller re-reads what it shows afterwards.
  */
 
-import { ActionDef, TOKEN_ID, TOKEN_RECORD } from './config';
+/** Where the record's GUID goes in a parameter's text. */
+export const TOKEN_ID = '{id}';
 
-/** How a row of the view's table is addressed: its entity set and its id column. */
-export interface RowKeys {
+/** A whole parameter value that becomes a typed reference to the record. */
+export const TOKEN_RECORD = '{record}';
+
+/** A Web API action to call. */
+export interface ActionDef {
+    /** The message's unique name, as written — the server is case-sensitive about it. */
+    name: string;
+    /** Bound to the record's table (`<set>(<id>)/Microsoft.Dynamics.CRM.<name>`), or unbound. */
+    bound: boolean;
+    /** The body, as written; `{id}` and `{record}` are filled in per record. */
+    parameters: Record<string, unknown>;
+    /** A response property whose value is said after the call, or `null`. */
+    result: string | null;
+}
+
+/** How a record of a table is addressed: its entity set and its id column. */
+export interface RecordKeys {
     table: string;
     set: string;
     primaryId: string;
@@ -58,7 +86,7 @@ export type ActionFetch = (url: string, init: {
 /**
  * `Content-Type` is the header that matters — without it the server answers
  * 415 before it reads anything (measured 2026-10-15). The OData pair is not
- * required and is sent anyway, as every other Web API call here sends it.
+ * required and is sent anyway, as every other Web API call sends it.
  */
 const HEADERS: Record<string, string> = {
     Accept: 'application/json',
@@ -75,25 +103,25 @@ function bare(id: string): string {
 }
 
 /** The path under `/api/data/v9.2/`: `<set>(<id>)/Microsoft.Dynamics.CRM.<name>` bound, `<name>` unbound. */
-export function actionPath(action: ActionDef, keys: RowKeys, id: string): string {
+export function actionPath(action: ActionDef, keys: RecordKeys, id: string): string {
     return action.bound ? `${keys.set}(${bare(id)})/Microsoft.Dynamics.CRM.${action.name}` : action.name;
 }
 
-/** The reference `{record}` becomes: the row as an entity reference, typed, because untyped is refused (P3). */
-export function rowReference(keys: RowKeys, id: string): Record<string, string> {
+/** The reference `{record}` becomes: the record as an entity reference, typed, because untyped is refused (P3). */
+export function recordReference(keys: RecordKeys, id: string): Record<string, string> {
     return { '@odata.type': `Microsoft.Dynamics.CRM.${keys.table}`, [keys.primaryId]: bare(id) };
 }
 
 /**
- * The body: the maker's parameters with the row filled in. A value that is
+ * The body: the maker's parameters with the record filled in. A value that is
  * exactly `{record}` becomes the reference; `{id}` anywhere in a string
- * becomes the row's GUID (so `"/cll_accounts({id})"` works too). Deep, through
- * objects and arrays; anything else is sent as written.
+ * becomes the record's GUID (so `"/cll_accounts({id})"` works too). Deep,
+ * through objects and arrays; anything else is sent as written.
  */
-export function actionBody(parameters: Record<string, unknown>, keys: RowKeys, id: string): Record<string, unknown> {
+export function actionBody(parameters: Record<string, unknown>, keys: RecordKeys, id: string): Record<string, unknown> {
     const fill = (value: unknown): unknown => {
         if (value === TOKEN_RECORD) {
-            return rowReference(keys, id);
+            return recordReference(keys, id);
         }
 
         if (typeof value === 'string') {
@@ -150,7 +178,7 @@ export function readRefusal(status: number, text: string, action: ActionDef): Re
  * it is there — the payload family, 1.5–3.6 KB with the stack (P3) — the
  * exception's own words without its type name, `--->` chain or stack; else
  * the message as it came, which the platform's own refusals already are (P5).
- * At most 300 characters, cut at a sentence. Used for every reason the control
+ * At most 300 characters, cut at a sentence. Fit for every reason a control
  * shows, a `webAPI` write's included, not only an action's.
  */
 export function readableReason(message: string): string {
@@ -168,7 +196,7 @@ export function readableReason(message: string): string {
     return sentence;
 }
 
-/** The response property a command names, as text — or `null` when it names none, or the answer carries nothing (a 204, P4). */
+/** The response property an action names, as text — or `null` when it names none, or the answer carries nothing (a 204, P4). */
 export function readResult(text: string, property: string | null): string | null {
     if (property === null || text === '') {
         return null;
@@ -190,13 +218,14 @@ export function readResult(text: string, property: string | null): string | null
 /**
  * One call. Resolves either way — a refusal is an answer, and offline is a
  * refusal with status 0 and the browser's own words — so a caller has one
- * path, and `bulk.ts`'s sequence turns `ok: false` into a failed row.
+ * path. An unbound action ignores `keys` and `id` unless its parameters say
+ * `{id}` or `{record}`.
  */
 export function callAction(
     fetchImpl: ActionFetch,
     clientUrl: string,
     action: ActionDef,
-    keys: RowKeys,
+    keys: RecordKeys,
     id: string,
 ): Promise<ActionOutcome> {
     const url = `${clientUrl}/api/data/v9.2/${actionPath(action, keys, id)}`;

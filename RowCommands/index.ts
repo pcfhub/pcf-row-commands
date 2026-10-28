@@ -1,5 +1,7 @@
 import { IInputs, IOutputs } from './generated/ManifestTypes';
-import { ActionFetch, Refusal, RowKeys, callAction, readableReason } from './action';
+import { ActionFetch, RecordKeys, Refusal, callAction, readableReason } from './lib/web-api-action/action';
+import { organisationUrl } from './lib/web-api-action/clientUrl';
+import { DefinitionsFetch, MetadataUtils, loadRecordKeys } from './lib/web-api-action/keys';
 import { BulkItem, BulkResult, runSequential } from './bulk';
 import { CommandDef, IconName, columnsWritten, holdsAll, labelFor } from './config';
 import { ConfigLoad, Fetch, loadCommands } from './configLoader';
@@ -202,7 +204,7 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * id column — read once per table, from the metadata the control already
      * asks for (SPEC.md P1). `null` when neither route could say.
      */
-    private rowKeyLoads = new Map<string, Promise<RowKeys | null>>();
+    private rowKeyLoads = new Map<string, Promise<RecordKeys | null>>();
 
     /** The progress line, updated in place so the Stop button keeps focus. */
     private progressText: HTMLElement | null = null;
@@ -2190,53 +2192,19 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
      * the `EntityDefinitions` fetch where it cannot say. Once per table; a
      * table neither route answers for is `null`, and the command says so.
      */
-    private rowKeys(context: ComponentFramework.Context<IInputs>, table: string): Promise<RowKeys | null> {
+    private rowKeys(context: ComponentFramework.Context<IInputs>, table: string): Promise<RecordKeys | null> {
         const cached = this.rowKeyLoads.get(table);
 
         if (cached) {
             return cached;
         }
 
-        const fromMetadata = (): Promise<RowKeys | null> => {
-            const utils = (context as { utils?: { getEntityMetadata?: (name: string) => Promise<{ EntitySetName?: unknown; PrimaryIdAttribute?: unknown }> } }).utils;
-
-            if (typeof utils?.getEntityMetadata !== 'function') {
-                return Promise.resolve(null);
-            }
-
-            try {
-                return Promise.resolve(utils.getEntityMetadata(table)).then(
-                    (meta) => (typeof meta?.EntitySetName === 'string' && meta.EntitySetName !== '' && typeof meta.PrimaryIdAttribute === 'string' && meta.PrimaryIdAttribute !== ''
-                        ? { table, set: meta.EntitySetName, primaryId: meta.PrimaryIdAttribute }
-                        : null),
-                    () => null,
-                );
-            } catch {
-                return Promise.resolve(null);
-            }
-        };
-
-        const fromDefinitions = (): Promise<RowKeys | null> => {
-            const base = organisationUrl(context);
-
-            if (base === null || typeof fetch !== 'function') {
-                return Promise.resolve(null);
-            }
-
-            return fetch(`${base}/api/data/v9.2/EntityDefinitions(LogicalName='${table}')?$select=EntitySetName,PrimaryIdAttribute`, {
-                headers: { Accept: 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
-                credentials: 'same-origin',
-            })
-                .then((response) => (response.ok ? response.json() : null))
-                .then(
-                    (body: { EntitySetName?: unknown; PrimaryIdAttribute?: unknown } | null) => (body && typeof body.EntitySetName === 'string' && typeof body.PrimaryIdAttribute === 'string'
-                        ? { table, set: body.EntitySetName, primaryId: body.PrimaryIdAttribute }
-                        : null),
-                    () => null,
-                );
-        };
-
-        const load = fromMetadata().then((keys) => keys ?? fromDefinitions());
+        const load = loadRecordKeys(
+            (context as { utils?: MetadataUtils }).utils,
+            organisationUrl(context),
+            typeof fetch === 'function' ? (fetch as unknown as DefinitionsFetch) : undefined,
+            table,
+        );
 
         this.rowKeyLoads.set(table, load);
         void load.then((keys) => {
@@ -3052,32 +3020,6 @@ export class RowCommands implements ComponentFramework.StandardControl<IInputs, 
  */
 function modelDrivenHost(context: ComponentFramework.Context<IInputs>): boolean {
     return organisationUrl(context) !== null;
-}
-
-/**
- * The organisation's URL, or `null` on a host that has none — the answer
- * `modelDrivenHost` rests on, and the base a web resource is fetched from.
- */
-function organisationUrl(context: ComponentFramework.Context<IInputs>): string | null {
-    const ask = <T>(call: () => T): T | undefined => {
-        try {
-            return call();
-        } catch {
-            return undefined;
-        }
-    };
-
-    const page = (context as { page?: { getClientUrl?: unknown } }).page;
-    const fromPage = typeof page?.getClientUrl === 'function'
-        ? ask(() => (page.getClientUrl as () => unknown)())
-        : undefined;
-    const fromGlobal = ask(() => (globalThis as {
-        Xrm?: { Utility?: { getGlobalContext?: () => { getClientUrl?: () => unknown } } };
-    }).Xrm?.Utility?.getGlobalContext?.()?.getClientUrl?.());
-
-    const url = [fromPage, fromGlobal].find((candidate) => typeof candidate === 'string' && candidate !== '');
-
-    return typeof url === 'string' ? url : null;
 }
 
 /**

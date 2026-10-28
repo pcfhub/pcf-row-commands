@@ -24,7 +24,7 @@
  * API, in one update. **A command with `action` calls a Web API action** — a
  * Custom API or a platform message — **bound** to the row's table or not, with
  * `parameters` sent as written once `{id}` and `{record}` are filled in
- * (`action.ts`). **A command with neither writes nothing**: it is a press,
+ * (`lib/web-api-action`). **A command with neither writes nothing**: it is a press,
  * reported on the outputs (and raised as `onRowCommand`) for a form script or
  * a canvas formula to act on.
  *
@@ -44,24 +44,17 @@
  * twice), which is what **Show Activate and Deactivate** is for.
  */
 
+import { ActionDef, TOKEN_ID, TOKEN_RECORD } from './lib/web-api-action/action';
+
+export type { ActionDef };
+export { TOKEN_ID, TOKEN_RECORD };
+
 export type SetValue = string | number | boolean | null;
 
 /** The glyphs a command may name. Drawn by `index.ts`; `run` is the default. */
 export const ICON_NAMES = ['run', 'check', 'dismiss', 'flag', 'send', 'star', 'warning', 'archive'] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
-
-/** A Web API action a command calls. */
-export interface ActionDef {
-    /** The message's unique name, as written — the server is case-sensitive about it. */
-    name: string;
-    /** Bound to the row's table (`<set>(<id>)/Microsoft.Dynamics.CRM.<name>`), or unbound. */
-    bound: boolean;
-    /** The body, as written; `{id}` and `{record}` are filled in per row. */
-    parameters: Record<string, unknown>;
-    /** A response property whose value is said after a single row's call, or `null`. */
-    result: string | null;
-}
 
 export interface CommandDef {
     /** What `invokedCommand` reports. Lower camel case. */
@@ -96,10 +89,6 @@ const KEYS = ['name', 'label', 'icon', 'set', 'action', 'bound', 'parameters', '
 
 /** An action's, a parameter's or a response property's name: what the Web API puts in a URL or a body. */
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
-
-/** The two tokens a parameter value may carry. Anything else in braces is sent as written. */
-export const TOKEN_ID = '{id}';
-export const TOKEN_RECORD = '{record}';
 
 /**
  * Whether the property holds the JSON itself rather than a web resource's
